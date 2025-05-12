@@ -142,7 +142,12 @@ def pp_commande(c) :
     return "--"
 
 def pp_liste_vars(l) :
-    return f"{l.children[0]}, {l.children[1]}"
+    res = f""
+    for i in range(len(l.children)-1) :
+        res += f"{l.children[i]},"
+    res += f"{l.children[-1]}"
+    return res
+
 
 def pp_programme(p):
     vars = p.children[0]
@@ -153,6 +158,7 @@ if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
     ast = g.parse(src)
+    print(pp_programme(ast))
     print(asm_programme(ast))
     # ast = g.parse('while (x>2) {y = 3 - x}')
     # print(ast)
