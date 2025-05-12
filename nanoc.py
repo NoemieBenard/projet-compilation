@@ -21,6 +21,10 @@ liste_att:                           -> vide
     | IDENTIFIER                     -> att
     | IDENTIFIER ";" liste_att       -> atts
          
+liste_struct:                            -> vide
+    | struct                             -> struct
+    | struct liste_struct                -> structs
+    
 
 expression: IDENTIFIER               -> var
     | expression OPBIN expression    -> opbin
@@ -32,13 +36,16 @@ commande: IDENTIFIER "=" expression                                          -> 
     | "if" "(" expression ")" "then" "{" commande "}" ("else" "{" commande "}")? -> ite
     | "printf" "(" expression ")" ";"                                            -> print
     | "skip"                                                                     -> skip
-programme: "main" "(" liste_var ")" "{" commande "return" "(" expression ")" "}"
+         
+main: "main" "(" liste_var ")" "{" commande "return" "(" expression ")" "}" -> main
+         
+programme: liste_struct main
          
 struct: "struct" IDENTIFIER "{" liste_att "}" ";" -> struct
          
 %import common.WS
 %ignore WS 
-""", start='struct')
+""", start='programme')
 
 op2asm = { '+': "add rax, rbx", 
           '-': "sub rax, rbx"}
@@ -136,11 +143,8 @@ def pp_commande(c) :
         body = c.children[1]
         return f"while ({pp_expression(exp)}) {{\n{pp_commande(body)}\n}}"
     elif c.data == "sequence" :
-        print('ok')
         d = c.children[0]
-        print("d : ",d)
         tail = c.children[1]
-        print("tail : ",tail)
         return f"{pp_commande(d)};\n{pp_commande(tail)}"
     elif c.data == "ite" :
         exp = c.children[0]
@@ -166,25 +170,34 @@ def pp_liste_atts(l) :
     else :
         return f"{l.children[0]};\n{pp_liste_atts(l.children[1])}"
 
-
-def pp_programme(p):
-    vars = p.children[0]
-    return f"main({pp_liste_vars(vars)}) {{\n{pp_commande(p.children[1])}\nreturn {pp_expression(p.children[2])}\n}}  "
-
+def pp_main(m):
+    return f"main({pp_liste_vars(m.children[0])}) {{\n{pp_commande(m.children[1])}\nreturn {pp_expression(m.children[2])}\n}}  "
 
 def pp_struct(s): 
     name = s.children[0]
     body = s.children[1]
     return f"struct {name} {{\n{pp_liste_atts(body)}}};"
 
+def pp_liste_struct(l):
+    if l.data == "vide" :
+        return f""
+    elif l.data == "struct" :
+        return f"{pp_struct(l.children[0])}"
+    else :
+        return f"{pp_struct(l.children[0])}\n\n{pp_liste_struct(l.children[1])}"
+    
+def pp_programme(p):
+    return f"{pp_liste_struct(p.children[0])}\n\n{pp_main(p.children[1])}"
+
+
 if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
-    # ast = g.parse(src)
-    # print(ast)
-    # print(pp_programme(ast))
+    ast = g.parse(src)
+    #print(ast)
+    print(pp_programme(ast))
     # print(asm_programme(ast))
-    ast = g.parse('struct point {x;y;z;};')
-    print(ast)
-    print(pp_struct(ast))
+    # ast = g.parse('struct point {};struct ligne {point1;point2;};')
+    # print(ast)
+    # print(pp_liste_struct(ast))
 
