@@ -28,9 +28,11 @@ commande: IDENTIFIER "=" expression                                          -> 
     | "skip"                                                                     -> skip
 programme: "main" "(" liste_var ")" "{" commande "return" "(" expression ")" "}"
          
+struct: "struct" IDENTIFIER "{" IDENTIFIER (";" IDENTIFIER)* "}" ";" -> struct
+         
 %import common.WS
 %ignore WS 
-""", start='programme')
+""", start='struct')
 
 op2asm = { '+': "add rax, rbx", 
           '-': "sub rax, rbx"}
@@ -153,13 +155,16 @@ def pp_programme(p):
     vars = p.children[0]
     return f"main({pp_liste_vars(vars)}) {{\n{pp_commande(p.children[1])}\nreturn {pp_expression(p.children[2])}\n}}  "
 
+def pp_struct(s): 
+    name = s.children[0]
+    return f"struct {name} {{\n }}"
 
 if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
-    ast = g.parse(src)
-    print(pp_programme(ast))
-    print(asm_programme(ast))
-    # ast = g.parse('while (x>2) {y = 3 - x}')
-    # print(ast)
-    # print(pp_commande(ast))
+    # ast = g.parse(src)
+    # print(asm_programme(ast))
+    ast = g.parse('struct point {x;y;z};')
+    print(ast)
+    print(pp_struct(ast))
+
