@@ -15,6 +15,10 @@ OPBIN: /[+\\-*><\\/]/ | "==" | "!="
     
 liste_var:                           -> vide
     | IDENTIFIER ("," IDENTIFIER)*   -> vars
+         
+liste_att:                           -> vide
+    | IDENTIFIER (";" IDENTIFIER)*   -> atts
+    
 
 expression: IDENTIFIER               -> var
     | expression OPBIN expression    -> opbin
@@ -28,7 +32,7 @@ commande: IDENTIFIER "=" expression                                          -> 
     | "skip"                                                                     -> skip
 programme: "main" "(" liste_var ")" "{" commande "return" "(" expression ")" "}"
          
-struct: "struct" IDENTIFIER "{" IDENTIFIER (";" IDENTIFIER)* "}" ";" -> struct
+struct: "struct" IDENTIFIER "{" liste_att "}" ";" -> struct
          
 %import common.WS
 %ignore WS 
@@ -155,9 +159,11 @@ def pp_programme(p):
     vars = p.children[0]
     return f"main({pp_liste_vars(vars)}) {{\n{pp_commande(p.children[1])}\nreturn {pp_expression(p.children[2])}\n}}  "
 
+
 def pp_struct(s): 
     name = s.children[0]
-    return f"struct {name} {{\n }}"
+    body = s.children[1]
+    return f"struct {name} {{\n{pp_commande()}}}"
 
 if __name__ == "__main__" :
     with open("simple.c") as f :
