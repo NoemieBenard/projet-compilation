@@ -14,11 +14,13 @@ NUMBER: /[1-9][0-9]*/ | "0"
 OPBIN: /[+\\-*><\\/]/ | "==" | "!="
     
 liste_var:                           -> vide
-    | IDENTIFIER ("," IDENTIFIER)*   -> vars
-         
+    | IDENTIFIER                     -> var
+    | IDENTIFIER "," liste_var       -> vars
+
 liste_att:                           -> vide
-    | IDENTIFIER (";" IDENTIFIER)*   -> atts
-    
+    | IDENTIFIER                     -> att
+    | IDENTIFIER ";" liste_att       -> atts
+         
 
 expression: IDENTIFIER               -> var
     | expression OPBIN expression    -> opbin
@@ -147,12 +149,22 @@ def pp_commande(c) :
         return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}\n}} else {{\n{pp_commande(body_else)}\n}}"
     return "--"
 
+
 def pp_liste_vars(l) :
-    res = f""
-    for i in range(len(l.children)-1) :
-        res += f"{l.children[i]},"
-    res += f"{l.children[-1]}"
-    return res
+    if l.data == "vide" :
+        return f""
+    elif l.data == "var" :
+        return f"{l.children[0]}"
+    else :
+        return f"{l.children[0]}, {pp_liste_vars(l.children[1])}"
+    
+def pp_liste_atts(l) :
+    if l.data == "vide" :
+        return f""
+    elif l.data == "att" :
+        return f"{l.children[0]}"
+    else :
+        return f"{l.children[0]};\n{pp_liste_atts(l.children[1])}"
 
 
 def pp_programme(p):
@@ -163,14 +175,16 @@ def pp_programme(p):
 def pp_struct(s): 
     name = s.children[0]
     body = s.children[1]
-    return f"struct {name} {{\n{pp_commande()}}}"
+    return f"struct {name} {{\n{pp_liste_atts(body)}}};"
 
 if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
     # ast = g.parse(src)
+    # print(ast)
+    # print(pp_programme(ast))
     # print(asm_programme(ast))
-    ast = g.parse('struct point {x;y;z};')
+    ast = g.parse('struct point {x;y;z;};')
     print(ast)
     print(pp_struct(ast))
 
