@@ -11,7 +11,7 @@ from lark import Tree
 g = Lark("""
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9]*/ 
 NUMBER: /[1-9][0-9]*/ | "0"
-OPBIN: /[+\-*><\/]/ | "==" | "!="
+OPBIN: /[+\\-*><\\/]/ | "==" | "!="
     
 liste_var:                           -> vide
     | IDENTIFIER ("," IDENTIFIER)*   -> vars
