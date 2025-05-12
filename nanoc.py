@@ -82,7 +82,7 @@ cmp rax, 0"""
         exp = c.children[0]
         body_if = c.children[1]
         body_else = c.children[2]
-        return f"if ({pp_expression_mine(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
+        return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
     return "--"
 
 def asm_programme(p):
@@ -107,35 +107,26 @@ mov [{c.value}], rax
 
 
 #pretty printer 
-def pp_expression_mine(e) :
-    print(e)
-    match e :
-        case Tree(data='var', children=[child]) | Tree(data='number', children=[child]): 
-            return f"{child.value}"
-        case Tree(data='opbin', children=children) :
-            return f"{pp_expression_prof(children[0])} {children[1].value} {pp_expression_prof(children[2])}"
-        case _ :
-            return "--"
 
-def pp_expression_prof(e) :
+def pp_expression(e) :
     if e.data in ("var", "number") :
             return f"{e.children[0].value}"
     e_left = e.children[0]
     e_op = e.children[1]
     e_right = e.children[2]
-    return f"{pp_expression_prof(e_left)} {e_op.value} {pp_expression_prof(e_right)}"
+    return f"{pp_expression(e_left)} {e_op.value} {pp_expression(e_right)}"
 
 def pp_commande(c) :
     if c.data == "affectation" :
         var = c.children[0]
         exp = c.children[1]
-        return f"{var.value} = {pp_expression_prof(exp)}"
+        return f"{var.value} = {pp_expression(exp)}"
     elif c.data == "skip": return "skip"
-    elif c.data == "print": return f"printf({pp_expression_prof(c.children[0])})"
+    elif c.data == "print": return f"printf({pp_expression(c.children[0])})"
     elif c.data == "while": 
         exp = c.children[0]
         body = c.children[1]
-        return f"while ({pp_expression_prof(exp)}) {{\n{pp_commande(body)}\n}}"
+        return f"while ({pp_expression(exp)}) {{\n{pp_commande(body)}\n}}"
     elif c.data == "sequence" :
         print('ok')
         d = c.children[0]
@@ -147,7 +138,7 @@ def pp_commande(c) :
         exp = c.children[0]
         body_if = c.children[1]
         body_else = c.children[2]
-        return f"if ({pp_expression_mine(exp)}) then {{\n{pp_commande(body_if)}\n}} else {{\n{pp_commande(body_else)}\n}}"
+        return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}\n}} else {{\n{pp_commande(body_else)}\n}}"
     return "--"
 
 def pp_liste_vars(l) :
@@ -155,7 +146,7 @@ def pp_liste_vars(l) :
 
 def pp_programme(p):
     vars = p.children[0]
-    return f"main({pp_liste_vars(vars)}) {{\n{pp_commande(p.children[1])}\nreturn {pp_expression_prof(p.children[2])}\n}}  "
+    return f"main({pp_liste_vars(vars)}) {{\n{pp_commande(p.children[1])}\nreturn {pp_expression(p.children[2])}\n}}  "
 
 
 if __name__ == "__main__" :
