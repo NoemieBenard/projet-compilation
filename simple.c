@@ -1,3 +1,8 @@
+plus(x,y){
+    z = x + y;
+    return z;   
+}
+
 main(x,y){
     while(x){
         x=x-1;
