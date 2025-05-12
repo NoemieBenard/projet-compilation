@@ -1,4 +1,4 @@
-main(x,y){
+main(x,y,z){
     while(x){
         x=x-1;
         y=y+1
