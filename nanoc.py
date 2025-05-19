@@ -12,14 +12,17 @@ g = Lark("""
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9]*/ 
 NUMBER: /[1-9][0-9]*/ | "0"
 OPBIN: /[+\\-*><\\/]/ | "==" | "!="
+         
+type: "int"                          -> int
+    | IDENTIFIER                     -> custom
     
 liste_var:                           -> vide
     | IDENTIFIER                     -> var
     | IDENTIFIER "," liste_var       -> vars
 
 liste_att:                           -> vide
-    | IDENTIFIER                     -> att
-    | IDENTIFIER ";" liste_att       -> atts
+    | type IDENTIFIER                -> att
+    | type IDENTIFIER ";" liste_att  -> atts
          
 liste_struct:                            -> vide
     | struct                             -> struct
@@ -162,13 +165,24 @@ def pp_liste_vars(l) :
     else :
         return f"{l.children[0]}, {pp_liste_vars(l.children[1])}"
     
+    
 def pp_liste_atts(l) :
     if l.data == "vide" :
         return f""
     elif l.data == "att" :
+        print(l.children)
         return f"{l.children[0]}"
     else :
-        return f"{l.children[0]};\n{pp_liste_atts(l.children[1])}"
+        type = l.children[0]
+        if type.data == "int" :
+            identifier = l.children[1]
+            tail = l.children[2]
+            return f"int {identifier.value};\n{pp_liste_atts(tail)}"
+        else :
+            identifier = l.children[1]
+            tail = l.children[2]
+            return f"{type.children[0]} {identifier.value};\n{pp_liste_atts(tail)}"
+    
 
 def pp_main(m):
     return f"main({pp_liste_vars(m.children[0])}) {{\n{pp_commande(m.children[1])}\nreturn {pp_expression(m.children[2])}\n}}  "
@@ -197,7 +211,7 @@ if __name__ == "__main__" :
     #print(ast)
     print(pp_programme(ast))
     # print(asm_programme(ast))
-    # ast = g.parse('struct point {};struct ligne {point1;point2;};')
+    # ast = g.parse('Point x;int y;')
     # print(ast)
-    # print(pp_liste_struct(ast))
+    # print(pp_liste_atts(ast))
 

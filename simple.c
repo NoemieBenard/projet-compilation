@@ -1,11 +1,11 @@
-struct point {
-    x;
-    y;
+struct Point {
+    int x;
+    int y;
 };
 
-struct ligne {
-    point1;
-    point2;
+struct Ligne {
+    Point point1;
+    Point point2;
 };
 
 
