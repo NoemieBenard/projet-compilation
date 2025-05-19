@@ -28,17 +28,21 @@ liste_struct:                            -> vide
     | struct                             -> struct
     | struct liste_struct                -> structs
     
-
 expression: IDENTIFIER               -> var
     | expression OPBIN expression    -> opbin
     | NUMBER                         -> number
          
-commande: IDENTIFIER "=" expression                                          -> affectation
+lhs: IDENTIFIER                      -> variable
+    | IDENTIFIER "." IDENTIFIER      -> acces_attribut 
+         
+
+commande: lhs "=" expression                                                    -> affectation
     | commande (";" commande)*                                                  -> sequence
     | "while" "(" expression ")" "{" commande "}"                                -> while
     | "if" "(" expression ")" "then" "{" commande "}" ("else" "{" commande "}")? -> ite
     | "printf" "(" expression ")" ";"                                            -> print
     | "skip"                                                                     -> skip
+    | type IDENTIFIER                                                            -> declaration_struct
          
 main: "main" "(" liste_var ")" "{" commande "return" "(" expression ")" "}" -> main
          
@@ -74,6 +78,7 @@ pop rax
 
 def asm_commande(c) :
     if c.data == "affectation" :
+        print(c)
         var = c.children[0]
         exp = c.children[1]
         return f"""{asm_expression(exp)}
@@ -128,17 +133,23 @@ mov [{c.value}], rax
 
 def pp_expression(e) :
     if e.data in ("var", "number") :
-            return f"{e.children[0].value}"
+        return f"{e.children[0].value}"
     e_left = e.children[0]
     e_op = e.children[1]
     e_right = e.children[2]
     return f"{pp_expression(e_left)} {e_op.value} {pp_expression(e_right)}"
 
+def pp_lhs(lhs) :
+    if lhs.data == "variable" :
+        return f"{lhs.children[0].value}"
+    elif lhs.data == "acces_attribut" :
+        return f"{lhs.children[0].value}.{lhs.children[1].value}"
+
 def pp_commande(c) :
     if c.data == "affectation" :
-        var = c.children[0]
+        lhs = c.children[0]
         exp = c.children[1]
-        return f"{var.value} = {pp_expression(exp)}"
+        return f"{pp_lhs(lhs)} = {pp_expression(exp)}"
     elif c.data == "skip": return "skip"
     elif c.data == "print": return f"printf({pp_expression(c.children[0])})"
     elif c.data == "while": 
@@ -154,6 +165,9 @@ def pp_commande(c) :
         body_if = c.children[1]
         body_else = c.children[2]
         return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}\n}} else {{\n{pp_commande(body_else)}\n}}"
+    elif c.data == "declaration_struct" :
+        type = c.children[0]
+        return f"{type.children[0]} {c.children[1].value}"
     return "--"
 
 
@@ -208,10 +222,10 @@ if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
     ast = g.parse(src)
-    #print(ast)
+    # print(ast)
     print(pp_programme(ast))
     # print(asm_programme(ast))
-    # ast = g.parse('Point x;int y;')
+    # ast = g.parse('p.x = 2')
     # print(ast)
-    # print(pp_liste_atts(ast))
+    # print(pp_commande(ast))
 

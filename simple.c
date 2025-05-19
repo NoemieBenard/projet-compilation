@@ -10,6 +10,9 @@ struct Ligne {
 
 
 main(x,y){
+    Point p;
+    p.x = 2;
+    p.y = 1;
     while(x){
         x=x-1;
         y=y+1
