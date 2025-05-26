@@ -50,7 +50,7 @@ main: "main" "(" liste_var ")" "{" commande "return" "(" expression ")" "}" -> m
          
 programme: liste_struct main
          
-struct: "struct" IDENTIFIER "{" liste_att "}" ";" -> struct
+struct: "typedef struct" "{" liste_att "}" IDENTIFIER ";" -> struct
          
 %import common.WS
 %ignore WS 
@@ -110,6 +110,24 @@ cmp rax, 0"""
         return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
     return "--"
 
+def decl_liste_atts(l) :
+    if l.data == "vide" :
+        return f""
+    elif l.data == "att" :
+        print(l.children)
+        return f"{l.children[0]}"
+    else :
+        type = l.children[0]
+        identifier = l.children[1]
+        tail = l.children[2]
+        return f"{identifier.value}: dq 0\n{decl_liste_atts(tail)}" 
+
+
+def decl_struct(s) :
+    name = s.children[0]
+    body = s.children[1]
+    return f"struc {name}\n{decl_liste_atts(body)}endstruc"
+
 def asm_programme(p):
     # read moule.asm
     with open("moule.asm") as f:
@@ -124,15 +142,8 @@ def asm_programme(p):
     decl_structs = ""
     for i, s in enumerate(structs.children):
         # s : current struct
-        print("s : ")
-        identifier = s.children[0]
-        print("i : ",identifier)
-        decl_s = f"""struc {identifier.value}"""
-        atts = s.children[1]
-        # for j, att in enumerate(atts.children) :
-            # print(att)
-            # decl_s += f"{att.children}: dq 0\n" # pour l'instant que des int, rajouter ensuite des attributs issus de struct
-        decl_s += f"""endstruc"""
+        decl_s = decl_struct(s)
+        print(decl_s)
         decl_structs += f"{decl_s}\n"
 
     # return value 
@@ -140,20 +151,20 @@ def asm_programme(p):
     prog_asm = prog_asm.replace("RETOUR", ret)
 
     # declare + initialize variables
-    init_vars = ""
-    decl_vars = ""
-    for i, c in enumerate(main.children[0]):
-        init_vars += f"""mov rbx, [argv]
-mov rdi, [rbx + {(i+1)*8}]
-call atoi
-mov [{c.value}], rax
-"""
-        decl_vars += f"{c.value}: dq 0\n"
+#     init_vars = ""
+#     decl_vars = ""
+#     for i, c in enumerate(main.children[0]):
+#         init_vars += f"""mov rbx, [argv]
+# mov rdi, [rbx + {(i+1)*8}]
+# call atoi
+# mov [{c.value}], rax
+# """
+#         decl_vars += f"{c.value}: dq 0\n"
 
-    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
-    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
-    asm_c = asm_commande(p.children[1])
-    prog_asm = prog_asm.replace("COMMANDE", asm_c)
+#     prog_asm = prog_asm.replace("INIT_VARS", init_vars)
+#     prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
+#     asm_c = asm_commande(p.children[1])
+#     prog_asm = prog_asm.replace("COMMANDE", asm_c)
     return prog_asm
 
 
@@ -230,9 +241,9 @@ def pp_main(m):
     return f"main({pp_liste_vars(m.children[0])}) {{\n{pp_commande(m.children[1])}\nreturn {pp_expression(m.children[2])}\n}}  "
 
 def pp_struct(s): 
-    name = s.children[0]
-    body = s.children[1]
-    return f"struct {name} {{\n{pp_liste_atts(body)}}};"
+    name = s.children[1]
+    body = s.children[0]
+    return f"typedef struct {{\n{pp_liste_atts(body)}}} {name};"
 
 def pp_liste_struct(l):
     if l.data == "vide" :
@@ -250,17 +261,17 @@ if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
     ast = g.parse(src)
-    #print(ast)
+    print(ast)
     print("structs : ", f"{ast.children[0]}\n")
-    # print("main : ", f"{ast.children[1]}\n")
-    # main = ast.children[1]
-    # print("vars : ", f"{main.children[0]}\n")
-    # print("body : ", f"{main.children[1]}\n")
-    # print("return : ", f"{main.children[2]}\n")
-    print(asm_programme(ast))
+    print("main : ", f"{ast.children[1]}\n")
+    main = ast.children[1]
+    print("vars : ", f"{main.children[0]}\n")
+    print("body : ", f"{main.children[1]}\n")
+    print("return : ", f"{main.children[2]}\n")
+    #print(asm_programme(ast))
     # print("body", ast.children[2])
     # print("return", ast.children[3])
-    # print(pp_programme(ast))
+    print(pp_programme(ast))
     # print(asm_programme(ast))
     # ast = g.parse('p.x = 2')
     # print(ast)

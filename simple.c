@@ -1,13 +1,12 @@
-struct Point {
+typedef struct {
     int x;
     int y;
-};
+} Point;
 
-struct Ligne {
-    Point point1;
-    Point point2;
-};
-
+typedef struct {
+    Point x;
+    Point y;
+} Ligne;
 
 main(x,y){
     Point p;
@@ -19,3 +18,6 @@ main(x,y){
     }
     return (y+1)
 }
+
+
+
