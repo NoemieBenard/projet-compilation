@@ -12,8 +12,10 @@ g = Lark("""
 IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9]*/ 
 NUMBER: /[1-9][0-9]*/ | "0"
 OPBIN: /[+\\-*><\\/]/ | "==" | "!="
+TYPE_INT: "int"
+
          
-type: "int"                          -> int
+type: TYPE_INT                       -> int
     | IDENTIFIER                     -> custom
     
 liste_var:                           -> vide
@@ -109,19 +111,45 @@ cmp rax, 0"""
     return "--"
 
 def asm_programme(p):
+    # read moule.asm
     with open("moule.asm") as f:
         prog_asm = f.read()
-    ret = asm_expression(p.children[2])
+
+    # separate code
+    structs = p.children[0]
+    main = p.children[1]
+
+    # declare + initialize structs
+    init_structs = ""
+    decl_structs = ""
+    for i, s in enumerate(structs.children):
+        # s : current struct
+        print("s : ")
+        identifier = s.children[0]
+        print("i : ",identifier)
+        decl_s = f"""struc {identifier.value}"""
+        atts = s.children[1]
+        # for j, att in enumerate(atts.children) :
+            # print(att)
+            # decl_s += f"{att.children}: dq 0\n" # pour l'instant que des int, rajouter ensuite des attributs issus de struct
+        decl_s += f"""endstruc"""
+        decl_structs += f"{decl_s}\n"
+
+    # return value 
+    ret = asm_expression(main.children[2])
     prog_asm = prog_asm.replace("RETOUR", ret)
+
+    # declare + initialize variables
     init_vars = ""
     decl_vars = ""
-    for i, c in enumerate(p.children[0].children):
+    for i, c in enumerate(main.children[0]):
         init_vars += f"""mov rbx, [argv]
 mov rdi, [rbx + {(i+1)*8}]
 call atoi
 mov [{c.value}], rax
 """
         decl_vars += f"{c.value}: dq 0\n"
+
     prog_asm = prog_asm.replace("INIT_VARS", init_vars)
     prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
     asm_c = asm_commande(p.children[1])
@@ -222,8 +250,17 @@ if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
     ast = g.parse(src)
-    # print(ast)
-    print(pp_programme(ast))
+    #print(ast)
+    print("structs : ", f"{ast.children[0]}\n")
+    # print("main : ", f"{ast.children[1]}\n")
+    # main = ast.children[1]
+    # print("vars : ", f"{main.children[0]}\n")
+    # print("body : ", f"{main.children[1]}\n")
+    # print("return : ", f"{main.children[2]}\n")
+    print(asm_programme(ast))
+    # print("body", ast.children[2])
+    # print("return", ast.children[3])
+    # print(pp_programme(ast))
     # print(asm_programme(ast))
     # ast = g.parse('p.x = 2')
     # print(ast)
