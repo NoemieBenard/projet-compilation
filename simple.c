@@ -1,12 +1,9 @@
-plus(x,y){
-    z = x + y;
-    return z;   
-}
 
-main(x,y){
-    while(x){
-        x=x-1;
-        y=y+1
-    }
-    return (y+1)
+plus(x,y){
+    skip
+    return (x+y)
+}
+main(x,y) {
+    skip
+    return (plus(x,y) + z)
 }

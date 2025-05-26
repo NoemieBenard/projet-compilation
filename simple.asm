@@ -15,20 +15,27 @@ main:
 push rbp 
 mov [argv], rsi
 
+
 mov rbx, [argv]
 mov rdi, [rbx + 8]
 call atoi
 mov [x], rax
+
 mov rbx, [argv]
 mov rdi, [rbx + 16]
 call atoi
 mov [y], rax
 
-at0: mov rax, [x]
-cmp rax, 0
-mov rax, [y]
+mov rax, 0
+mov [z], rax
+mov rax, [x]
 push rax
-mov rax, 1
+mov rax, [y]
+mov rbx, rax
+pop rax
+add rax, rbx
+push rax
+mov rax, [z]
 mov rbx, rax
 pop rax
 add rax, rbx
