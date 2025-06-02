@@ -49,6 +49,13 @@ def asm_lhs(l):
 def asm_expression(e):
     if e.data == "var": return f"mov rax, [{e.children[0].value}]"
     if e.data == "number": return f"mov rax, {e.children[0].value}"
+    if e.data == "adresse":
+        var = e.children[0]
+        return f"lea rax, {var.children[0].value}"
+    if e.data == "valeur": 
+        var = e.children[0]
+        return f"mov rax, [{var.children[0].value}]"
+
     e_left = e.children[0]
     e_op = e.children[1]
     e_right = e.children[2]
@@ -70,7 +77,7 @@ def asm_commande(c):
     if c.data == "affectation": 
         lhs = c.children[0]
         exp = c.children[1]
-        return f"{asm_expression(exp)}\nmov [{var.value}], rax"
+        return f"{asm_expression(exp)}\nmov [{lhs.value}], rax" #avant lhs c'était var
     if c.data == "skip": return "nop"
     if c.data == "print": return f"""{asm_expression(c.children[0])}
 mov rsi, fmt
@@ -162,7 +169,8 @@ def pp_programme(p):
 if __name__ == "__main__":
    # with open("simple.c") as f:
         #src = f.read()
-    ast = g.parse("4")
+    ast = g.parse("**p")
+    #print(ast)
     print(asm_expression(ast))
     #print(pp_expression(ast))
     #print(pp_commande(ast))

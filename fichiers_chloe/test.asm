@@ -3,22 +3,29 @@ extern printf, atoi
 section .data
 
 DECL_VARS:
-argv: dq 0
+p: dq 0
 fmt_int: db "%d", 10, 0
+
 
 global main
 section .text
 
 main:
 push rbp
-mov [argv], rsi
 
 INIT_VARS:
 COMMANDE:
 RETOUR:
+
+mov rax, p
+mov rbx, [rax]
+add rbx, 1
+mov [p], rbx
+
+
 mov rdi, fmt_int
-mov rsi, rax
-xor rax, rax
+mov rsi, [p]
+
 call printf
 
 pop rbp
