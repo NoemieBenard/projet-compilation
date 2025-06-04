@@ -49,12 +49,20 @@ def asm_lhs(l):
 def asm_expression(e):
     if e.data == "var": return f"mov rax, [{e.children[0].value}]"
     if e.data == "number": return f"mov rax, {e.children[0].value}"
-    if e.data == "adresse":
-        var = e.children[0]
-        return f"lea rax, {var.children[0].value}"
+    if e.data == "adresse":return f"mov rax, {e.children[0].children[0].value}"
     if e.data == "valeur": 
+        compteur = 0 
         var = e.children[0]
-        return f"mov rax, [{var.children[0].value}]"
+        if var.data == "valeur":
+            
+            while var.data == "valeur": #je regarde si var.data est une valeur. le compteur compte toutes les étoiles en plus de la première
+                compteur += 1
+                var = var.children[0]
+            char = f"mov rax, [{var.children[0].value}]"
+            for i in range(compteur):
+                char += "\nmov rax, [rax]"
+            return char
+        else: return f"mov rax, [{var.children[0].value}]"
 
     e_left = e.children[0]
     e_op = e.children[1]
@@ -169,7 +177,7 @@ def pp_programme(p):
 if __name__ == "__main__":
    # with open("simple.c") as f:
         #src = f.read()
-    ast = g.parse("**p")
+    ast = g.parse("****p")
     #print(ast)
     print(asm_expression(ast))
     #print(pp_expression(ast))
