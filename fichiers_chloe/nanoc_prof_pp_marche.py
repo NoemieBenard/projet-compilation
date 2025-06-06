@@ -25,7 +25,7 @@ commande: commande (";" commande)*                -> sequence
 program:"main" "(" liste_var ")" "{"commande"return" "("expression")" "}"
 %import common.WS
 %ignore WS
-""", start='expression')
+""", start='lhs')
 
 
 def get_vars_expression(e):
@@ -40,9 +40,21 @@ op2asm = {'+' : 'add rax, rbx', '-': 'sub rax, rbx'}
 
 
 def asm_lhs(l):
-    if l.data == "var": return f"mov rax, [{l.children[0].value}]"
-
-    return    
+    if l.data == "var": return f"mov rbx, [{l.children[0].value}]"
+    if l.data == "pointeur": 
+        compteur = 0 
+        var = l.children[0]
+        if var.data == "pointeur":
+            
+            while var.data == "pointeur": #je regarde si var.data est une valeur. le compteur compte toutes les étoiles en plus de la première
+                compteur += 1
+                var = var.children[0]
+            char = f"mov rbx, {var.children[0].value}"
+            for i in range(compteur):
+                char += "\nmov rbx, [rbx]"
+            return char
+        else: return f"mov rbx, {var.children[0].value}"
+   
 
 
 
@@ -177,9 +189,9 @@ def pp_programme(p):
 if __name__ == "__main__":
    # with open("simple.c") as f:
         #src = f.read()
-    ast = g.parse("****p")
+    ast = g.parse("*******p")
     #print(ast)
-    print(asm_expression(ast))
+    print(asm_lhs(ast))
     #print(pp_expression(ast))
     #print(pp_commande(ast))
     #print(pp_lhs(ast))
