@@ -2,8 +2,9 @@ extern printf, atoi
 
 section .data
 
-X: dq 0
-Y: dq 0
+DECL_VARS:
+x: dq 0
+y: dq 0
 
 argv: dq 0
 fmt_int: db "%d", 10, 0
@@ -15,38 +16,46 @@ main:
 push rbp
 mov [argv], rsi
 
+INIT_VARS:
 mov rbx, [argv]
 mov rdi, [rbx + 8]
 call atoi
-mov [X], rax
+mov [x], rax
 mov rbx, [argv]
 mov rdi, [rbx + 16]
 call atoi
-mov [Y], rax
+mov [y], rax
 
-loop0:mov rax, [X]
+COMMANDE:
+loop0:mov rax, [x]
 cmp rax, 0
 jz end0
-mov rax, [X] 
+mov rax, [x] 
 push rax
 mov rax, 1
-pop rax
 mov rbx, rax
-
+pop rax
 sub rax, rbx
-mov [X], rax
- mov rax, [Y] 
+mov rbx, x
+mov [rbx], rax
+ mov rax, [y] 
 push rax
 mov rax, 1
-pop rax
 mov rbx, rax
-
+pop rax
 add rax, rbx
-mov [Y], rax
+mov rbx, y
+mov [rbx], rax
 jmp loop0
 end0: nop
 
-mov rax, [Y]
+RETOUR:
+mov rax, [y] 
+push rax
+mov rax, 1
+mov rbx, rax
+pop rax
+add rax, rbx
 mov rdi, fmt_int
 mov rsi, rax
 xor rax, rax

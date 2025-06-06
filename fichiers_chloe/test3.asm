@@ -30,7 +30,7 @@ mov [rbx], rax
 
 
 mov rdi, fmt_int
-mov rsi, X
+mov rsi, [X]
 
 call printf
 

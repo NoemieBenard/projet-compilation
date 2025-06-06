@@ -1,7 +1,8 @@
-main(X,Y){
-    while(X){
-        X = X-1;
-        Y = Y+1
+
+main(x,y){
+    while(x){
+        x=x-1;
+        y=y+1
     }
-    return(Y)
+    return (y+1)
 }

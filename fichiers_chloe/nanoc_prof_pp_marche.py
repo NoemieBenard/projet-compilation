@@ -16,16 +16,16 @@ expression: IDENTIFIER            -> var
     | "*"expression               -> valeur
 lhs: IDENTIFIER                   -> var
     | "*"lhs                      -> pointeur
-commande: commande (";" commande)*                -> sequence
-    | "while" "(" expression ")" "{" commande "}" -> while
-    | lhs "=" expression                   -> affectation
+commande: commande (";" commande)*                               -> sequence
+    | "while" "(" expression ")" "{" commande "}"                -> while
+    | lhs "=" expression                                         -> affectation
     |"if" "(" expression ")" "{" commande "}" ("else" "{" commande "}")? -> ite
     | "printf" "(" expression ")"                                        -> print
     | "skip"                                                             -> skip
-program:"main" "(" liste_var ")" "{"commande"return" "("expression")" "}"
+program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
 %import common.WS
 %ignore WS
-""", start='lhs')
+""", start='program')
 
 
 def get_vars_expression(e):
@@ -39,8 +39,8 @@ op2asm = {'+' : 'add rax, rbx', '-': 'sub rax, rbx'}
 
 
 
-def asm_lhs(l):
-    if l.data == "var": return f"mov rbx, [{l.children[0].value}]"
+def asm_lhs(l): #met l'adresse de ce qu'il faut changer dans rbx
+    if l.data == "var": return f"mov rbx, {l.children[0].value}"
     if l.data == "pointeur": 
         compteur = 0 
         var = l.children[0]
@@ -49,11 +49,11 @@ def asm_lhs(l):
             while var.data == "pointeur": #je regarde si var.data est une valeur. le compteur compte toutes les étoiles en plus de la première
                 compteur += 1
                 var = var.children[0]
-            char = f"mov rbx, {var.children[0].value}"
+            char = f"mov rbx, [{var.children[0].value}]"
             for i in range(compteur):
                 char += "\nmov rbx, [rbx]"
             return char
-        else: return f"mov rbx, {var.children[0].value}"
+        else: return f"mov rbx, [{var.children[0].value}]"
    
 
 
@@ -97,7 +97,7 @@ def asm_commande(c):
     if c.data == "affectation": 
         lhs = c.children[0]
         exp = c.children[1]
-        return f"{asm_expression(exp)}\nmov [{lhs.value}], rax" #avant lhs c'était var
+        return f"{asm_expression(exp)}\n{asm_lhs(lhs)}\nmov [rbx], rax" #avant lhs c'était var
     if c.data == "skip": return "nop"
     if c.data == "print": return f"""{asm_expression(c.children[0])}
 mov rsi, fmt
@@ -123,13 +123,11 @@ end{idx}: nop
         return f"{asm_commande(d)}\n {asm_commande(tail)}"
 
 
-
-
 def asm_program(p):
     with open("moule.asm") as f:
         prog_asm = f.read()
     ret = asm_expression(p.children[2])
-    prog_asm = prog_asm.replace("RETOUR", ret)
+    prog_asm = prog_asm.replace("RETOUR:","RETOUR:\n"+ret)
     init_vars = ""
     decl_vars = ""
     for i, c in enumerate(p.children[0].children):
@@ -139,10 +137,10 @@ call atoi
 mov [{c.value}], rax
 """
         decl_vars += f"{c.value}: dq 0\n"
-    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
-    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
+    prog_asm = prog_asm.replace("INIT_VARS:", "INIT_VARS:\n"+init_vars)
+    prog_asm = prog_asm.replace("DECL_VARS:", "DECL_VARS:\n"+decl_vars)
     asm_c = asm_commande(p.children[1])
-    prog_asm = prog_asm.replace("COMMANDE", asm_c)
+    prog_asm = prog_asm.replace("COMMANDE:", "COMMANDE:\n"+asm_c)
     return prog_asm    
 
 
@@ -187,14 +185,22 @@ def pp_programme(p):
 
 
 if __name__ == "__main__":
-   # with open("simple.c") as f:
-        #src = f.read()
-    ast = g.parse("*******p")
+   with open("simple.c") as f:
+        src = f.read()
+        ast = g.parse(src)
+        #print(asm_commande(ast))
+        #asm_program(ast)
+        
+        print(asm_program(ast))
+        
+
     #print(ast)
-    print(asm_lhs(ast))
-    #print(pp_expression(ast))
-    #print(pp_commande(ast))
+    #print(asm_lhs(ast))
+    
+    
     #print(pp_lhs(ast))
 #print(ast.children)
 #print(ast.children[0].type)
 #print(ast.children[0].value)
+
+#program:"main" "(" liste_var ")" "{"commande"return" "("expression")" "}"
