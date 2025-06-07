@@ -8,15 +8,17 @@ typedef struct {
     Point p2;
 } Ligne;
 
-
+typedef struct {
+    int d;
+} Test;
 
 main(x,y){
     Point p;
     Ligne l;
-    y = 3;
-    p.x = 2;
-    p.y = 5
-    return (p.y)
+    p.x = 5;
+    p.y = p.x + 10;
+    l.p1 = p
+    return (p.x)
 }
 
 

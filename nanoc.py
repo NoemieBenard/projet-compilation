@@ -33,10 +33,11 @@ liste_struct:                            -> vide
 expression: IDENTIFIER               -> var
     | expression OPBIN expression    -> opbin
     | NUMBER                         -> number
-    | IDENTIFIER "." IDENTIFIER      -> acces_attribut 
+    | IDENTIFIER "." lhs      -> acces_attribut 
          
 lhs: IDENTIFIER                      -> variable
-    | IDENTIFIER "." IDENTIFIER      -> acces_attribut 
+    | IDENTIFIER "." lhs      -> acces_attribut 
+
          
 
 commande: lhs "=" expression                                                    -> affectation
@@ -78,10 +79,11 @@ def asm_expression(e) :
     if e.data == "number":  return f"mov rax, {e.children[0].value}"
     if e.data == "acces_attribut": 
         identifier = e.children[0].value
-        field = e.children[1].value
+        field = e.children[1]
+        field_name = get_field_name(field)
         object_offset = var_symbol_table[identifier]["off"]
         object_type = var_symbol_table[identifier]["type"]
-        field_offset = struct_symbol_table[object_type][field]
+        field_offset = struct_symbol_table[object_type][field_name]
         return f"mov rax, [rsp + {object_offset + field_offset}]"
 
     e_left = e.children[0]
@@ -99,7 +101,11 @@ pop rax
 {op2asm[e_op.value]}"""
 
 
-
+def get_field_name(f) :
+    if (f.data == "variable") :
+            return f.children[0].value
+    else :
+        return f"{f.children[0].value}.{get_field_name(f.children[1])}"
 
 def asm_commande(c) :
     global current_offset
@@ -111,11 +117,13 @@ def asm_commande(c) :
             asm_lhs = f"[{lhs.children[0].value}]"
         else :
             identifier = lhs.children[0].value
-            field = lhs.children[1].value
             object_offset = var_symbol_table[identifier]["off"]
             object_type = var_symbol_table[identifier]["type"]
-            field_offset = struct_symbol_table[object_type][field]
+            field = lhs.children[1]
+            field_name = get_field_name(field)
+            field_offset = struct_symbol_table[object_type][field_name]
             asm_lhs = f"[rsp + {object_offset + field_offset}]"
+
         return f"""{asm_expression(exp)}
 mov {asm_lhs}, rax"""
     elif c.data == "skip": return ""
@@ -268,6 +276,8 @@ def asm_programme(p):
 def pp_expression(e) :
     if e.data in ("var", "number") :
         return f"{e.children[0].value}"
+    elif e.data == "acces_attribut" :
+        return f"{e.children[0].value}.{pp_lhs(e.children[1])}"
     e_left = e.children[0]
     e_op = e.children[1]
     e_right = e.children[2]
@@ -277,7 +287,7 @@ def pp_lhs(lhs) :
     if lhs.data == "variable" :
         return f"{lhs.children[0].value}"
     elif lhs.data == "acces_attribut" :
-        return f"{lhs.children[0].value}.{lhs.children[1].value}"
+        return f"{lhs.children[0].value}.{pp_lhs(lhs.children[1])}"
 
 def pp_commande(c) :
     
@@ -357,20 +367,20 @@ if __name__ == "__main__" :
     #print(ast)
     # print("structs : ", f"{ast.children[0]}\n")
     # print("main : ", f"{ast.children[1]}\n")
-    # main = ast.children[1]
+    main = ast.children[1]
     # print("vars : ", f"{main.children[0]}\n")
     # print("body : ", f"{main.children[1]}\n")
-    # print("return : ", f"{main.children[2]}\n")
+    #print("return : ", f"{main.children[2]}\n")
     #print(asm_programme(ast))
     # print("body", ast.children[2])
     # print("return", ast.children[3])
-    # print(pp_programme(ast))
+    #print(pp_programme(ast))
     
     structs = ast.children[0]
     #structs = Tree('struct', [Tree('struct', [Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'x'), Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'y'), Tree('vide', [])])]), Token('IDENTIFIER', 'Ligne')])])
     # decl = Tree('declaration_struct', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'p')])
     init_struct_symbol_table(structs, struct_symbol_table)
-    # print(struct_symbol_table)
+    #print(struct_symbol_table)
     print(asm_programme(ast))
     # print(var_symbol_table)
 
