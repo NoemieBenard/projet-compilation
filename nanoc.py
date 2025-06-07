@@ -1,5 +1,5 @@
 from lark import Lark
-from lark import Tree
+from lark import Tree, Token
 
 #Définition de la grammaire
 # s: symbole de départ
@@ -59,7 +59,17 @@ struct: "typedef struct" "{" liste_att "}" IDENTIFIER ";" -> struct
 op2asm = { '+': "add rax, rbx", 
           '-': "sub rax, rbx"}
 
-#Assembly
+# symbol_table = {point: {x: 0, y: 8}, ligne: {p1_x: 0, p1_y: 8, p2_x: 16, p2_y: 24}}
+struct_symbol_table = {}
+
+
+
+###########################################################################
+########################      Assembly     ################################
+###########################################################################
+
+
+
 def asm_expression(e) :
     if e.data == "var": return f"mov rax, [{e.children[0].value}]"
     if e.data == "number":  return f"mov rax, {e.children[0].value}"
@@ -77,6 +87,9 @@ push rax
 mov rbx, rax
 pop rax
 {op2asm[e_op.value]}"""
+
+
+
 
 def asm_commande(c) :
     if c.data == "affectation" :
@@ -110,23 +123,86 @@ cmp rax, 0"""
         return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
     return "--"
 
-def decl_liste_atts(l) :
-    if l.data == "vide" :
-        return f""
-    elif l.data == "att" :
-        print(l.children)
-        return f"{l.children[0]}"
-    else :
-        type = l.children[0]
-        identifier = l.children[1]
-        tail = l.children[2]
-        return f"{identifier.value}: dq 0\n{decl_liste_atts(tail)}" 
 
 
-def decl_struct(s) :
-    name = s.children[0]
-    body = s.children[1]
-    return f"struc {name}\n{decl_liste_atts(body)}endstruc"
+
+
+def init_atts(body, res, offset, symbol_table) :
+    # if body.data == "vide" :
+    #     return res
+    # else :
+    #     type = body.children[0]
+
+    #     if type.data == "int" :
+    #         identifier = body.children[1]
+    #         tail = body.children[2]
+    #         res[identifier.value] = offset
+    #         offset += 8
+    #         return init_atts(tail, res, offset, symbol_table)
+    #     else :
+    #         identifier = body.children[1]
+    #         tail = body.children[2]
+    #         if type.children[0] not in symbol_table :
+    #             print(f"Error : type {type.children[0]} undefined")
+    #             return {}
+    #         else :
+    #             res[identifier.value] = symbol_table[type.children[0]]
+    #             return init_atts(tail, res, offset, symbol_table)
+    if body.data == "vide":
+        return res
+    else:
+        type_node = body.children[0]
+        identifier = body.children[1]
+        tail = body.children[2]
+
+        if type_node.data == "int":
+            res[identifier.value] = offset
+            offset += 8  #each attribute is an 8-byte int
+        else:
+            type_name = type_node.children[0].value
+            if type_name not in symbol_table:
+                print(f"Error: type {type_name} undefined")
+                return {}
+            else:
+                sublayout = symbol_table[type_name]
+                for field, suboffset in sublayout.items():
+                    res[f"{identifier.value}.{field}"] = offset + suboffset
+                offset += max(sublayout.values()) + 8  # assumes fields are 8 bytes
+
+        return init_atts(tail, res, offset, symbol_table)
+
+def init_struct(s, symbol_table):
+    # if s.children[0].data == "struct":
+    #     return init_struct(s.children[0], symbol_table)
+    # else :
+    body = s.children[0]
+    name = s.children[1]
+    symbol_table[name.value] = init_atts(body, {}, 0, symbol_table)
+    return symbol_table
+
+# def init_struct_symbol_table(liste_structs, symbol_table) :
+#     if liste_structs.data == "vide" :
+#         return symbol_table
+#     elif liste_structs.data == "struct" :
+#         #struct = liste_structs.children[0]
+#         name = liste_structs.children[1]
+#         body = liste_structs.children[0]
+#         print(body)
+#         symbol_table[name.value] = init_atts(body,{},0, symbol_table)
+#         return symbol_table
+#     else :
+#         tmp = init_struct_symbol_table(liste_structs.children[0], symbol_table)
+#         return init_struct_symbol_table(liste_structs.children[1], tmp)
+        
+    
+def init_struct_symbol_table(liste_structs, symbol_table):
+    if liste_structs.data == "vide":
+        return symbol_table
+    elif liste_structs.data == "struct":
+        return init_struct(liste_structs.children[0], symbol_table)
+    else:
+        symbol_table = init_struct_symbol_table(liste_structs.children[0], symbol_table)
+        return init_struct_symbol_table(liste_structs.children[1], symbol_table)
 
 def asm_programme(p):
     # read moule.asm
@@ -137,38 +213,47 @@ def asm_programme(p):
     structs = p.children[0]
     main = p.children[1]
 
+    #initialize struct symbol table
+    init_struct_symbol_table(structs)
+
     # declare + initialize structs
-    init_structs = ""
-    decl_structs = ""
-    for i, s in enumerate(structs.children):
-        # s : current struct
-        decl_s = decl_struct(s)
-        print(decl_s)
-        decl_structs += f"{decl_s}\n"
+    # init_structs = ""
+    # decl_structs = ""
+    # for i, s in enumerate(structs.children):
+    #     # s : current struct
+    #     decl_s = decl_struct(s)
+    #     print(decl_s)
+    #     decl_structs += f"{decl_s}\n"
 
     # return value 
     ret = asm_expression(main.children[2])
     prog_asm = prog_asm.replace("RETOUR", ret)
 
-    # declare + initialize variables
-#     init_vars = ""
-#     decl_vars = ""
-#     for i, c in enumerate(main.children[0]):
-#         init_vars += f"""mov rbx, [argv]
-# mov rdi, [rbx + {(i+1)*8}]
-# call atoi
-# mov [{c.value}], rax
-# """
-#         decl_vars += f"{c.value}: dq 0\n"
+    #declare + initialize variables
+    init_vars = ""
+    decl_vars = ""
+    for i, c in enumerate(main.children[0]):
+        init_vars += f"""mov rbx, [argv]
+mov rdi, [rbx + {(i+1)*8}]
+call atoi
+mov [{c.value}], rax
+"""
+        decl_vars += f"{c.value}: dq 0\n"
 
-#     prog_asm = prog_asm.replace("INIT_VARS", init_vars)
-#     prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
-#     asm_c = asm_commande(p.children[1])
-#     prog_asm = prog_asm.replace("COMMANDE", asm_c)
+    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
+    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
+    asm_c = asm_commande(p.children[1])
+    prog_asm = prog_asm.replace("COMMANDE", asm_c)
     return prog_asm
 
 
-#pretty printer 
+
+
+
+###########################################################
+############   pretty printer    ##########################
+###########################################################
+
 
 def pp_expression(e) :
     if e.data in ("var", "number") :
@@ -222,9 +307,9 @@ def pp_liste_vars(l) :
 def pp_liste_atts(l) :
     if l.data == "vide" :
         return f""
-    elif l.data == "att" :
-        print(l.children)
-        return f"{l.children[0]}"
+    # elif l.data == "att" :
+    #     print(l.children)
+    #     return f"{l.children[0]}"
     else :
         type = l.children[0]
         if type.data == "int" :
@@ -251,6 +336,7 @@ def pp_liste_struct(l):
     elif l.data == "struct" :
         return f"{pp_struct(l.children[0])}"
     else :
+        print("structs : ",l)
         return f"{pp_struct(l.children[0])}\n\n{pp_liste_struct(l.children[1])}"
     
 def pp_programme(p):
@@ -261,7 +347,7 @@ if __name__ == "__main__" :
     with open("simple.c") as f :
         src = f.read()
     ast = g.parse(src)
-    print(ast)
+    #print(ast)
     print("structs : ", f"{ast.children[0]}\n")
     print("main : ", f"{ast.children[1]}\n")
     main = ast.children[1]
@@ -272,8 +358,11 @@ if __name__ == "__main__" :
     # print("body", ast.children[2])
     # print("return", ast.children[3])
     print(pp_programme(ast))
-    # print(asm_programme(ast))
-    # ast = g.parse('p.x = 2')
-    # print(ast)
-    # print(pp_commande(ast))
+    
+    structs = ast.children[0]
+    #structs = Tree('struct', [Tree('struct', [Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'x'), Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'y'), Tree('vide', [])])]), Token('IDENTIFIER', 'Ligne')])])
+    print(pp_liste_struct(structs))
+    init_struct_symbol_table(structs, struct_symbol_table)
+    print(struct_symbol_table)
+
 

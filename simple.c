@@ -4,9 +4,14 @@ typedef struct {
 } Point;
 
 typedef struct {
-    Point x;
-    Point y;
+    Point p1;
+    Point p2;
 } Ligne;
+
+typedef struct {
+    Ligne l;
+} Test;
+
 
 main(x,y){
     Point p;
