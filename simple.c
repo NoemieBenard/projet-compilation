@@ -12,8 +12,11 @@ typedef struct {
 
 main(x,y){
     Point p;
-    Ligne l
-    return (y+1)
+    Ligne l;
+    y = 3;
+    p.x = 2;
+    p.y = 5
+    return (p.y)
 }
 
 

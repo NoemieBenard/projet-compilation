@@ -33,6 +33,7 @@ liste_struct:                            -> vide
 expression: IDENTIFIER               -> var
     | expression OPBIN expression    -> opbin
     | NUMBER                         -> number
+    | IDENTIFIER "." IDENTIFIER      -> acces_attribut 
          
 lhs: IDENTIFIER                      -> variable
     | IDENTIFIER "." IDENTIFIER      -> acces_attribut 
@@ -75,6 +76,13 @@ current_offset = 0
 def asm_expression(e) :
     if e.data == "var": return f"mov rax, [{e.children[0].value}]"
     if e.data == "number":  return f"mov rax, {e.children[0].value}"
+    if e.data == "acces_attribut": 
+        identifier = e.children[0].value
+        field = e.children[1].value
+        object_offset = var_symbol_table[identifier]["off"]
+        object_type = var_symbol_table[identifier]["type"]
+        field_offset = struct_symbol_table[object_type][field]
+        return f"mov rax, [rsp + {object_offset + field_offset}]"
 
     e_left = e.children[0]
     e_op = e.children[1]
@@ -96,10 +104,20 @@ pop rax
 def asm_commande(c) :
     global current_offset
     if c.data == "affectation" :
-        var = c.children[0]
+        lhs = c.children[0]
         exp = c.children[1]
+        asm_lhs = ""
+        if lhs.data == "variable" :
+            asm_lhs = f"[{lhs.children[0].value}]"
+        else :
+            identifier = lhs.children[0].value
+            field = lhs.children[1].value
+            object_offset = var_symbol_table[identifier]["off"]
+            object_type = var_symbol_table[identifier]["type"]
+            field_offset = struct_symbol_table[object_type][field]
+            asm_lhs = f"[rsp + {object_offset + field_offset}]"
         return f"""{asm_expression(exp)}
-mov [{var}], rax"""
+mov {asm_lhs}, rax"""
     elif c.data == "skip": return ""
     elif c.data == "print":
         exp = c.children[0]
@@ -222,10 +240,6 @@ def asm_programme(p):
     #initialize struct symbol table
     init_struct_symbol_table(structs, struct_symbol_table)
 
-    # return value 
-    ret = asm_expression(main.children[2])
-    prog_asm = prog_asm.replace("RETOUR", ret)
-
     #declare + initialize variables
     init_vars, decl_vars = init_and_decl_vars(main.children[0],0)
     prog_asm = prog_asm.replace("INIT_VARS", init_vars)
@@ -233,9 +247,12 @@ def asm_programme(p):
 
     # assembly for commands
     asm_c = asm_commande(main.children[1])
-    print("heyyyyy : ",current_offset)
-    asm_c += f"""\nadd rsp, {current_offset}""" #restore allocated stack space
     prog_asm = prog_asm.replace("COMMANDE", asm_c)
+
+    # return value 
+    ret = asm_expression(main.children[2])
+    ret += f"""\nadd rsp, {current_offset}""" #restore allocated stack space
+    prog_asm = prog_asm.replace("RETOUR", ret)
 
     return prog_asm
 
@@ -263,6 +280,7 @@ def pp_lhs(lhs) :
         return f"{lhs.children[0].value}.{lhs.children[1].value}"
 
 def pp_commande(c) :
+    
     if c.data == "affectation" :
         lhs = c.children[0]
         exp = c.children[1]
@@ -300,9 +318,6 @@ def pp_liste_vars(l) :
 def pp_liste_atts(l) :
     if l.data == "vide" :
         return f""
-    # elif l.data == "att" :
-    #     print(l.children)
-    #     return f"{l.children[0]}"
     else :
         type = l.children[0]
         if type.data == "int" :
@@ -316,7 +331,7 @@ def pp_liste_atts(l) :
     
 
 def pp_main(m):
-    return f"main({pp_liste_vars(m.children[0])}) {{\n{pp_commande(m.children[1])}\nreturn {pp_expression(m.children[2])}\n}}  "
+    return f"main({pp_liste_vars(m.children[0])}) {{\n{pp_commande(m.children[1])}\nreturn {pp_lhs(m.children[2])}\n}}  "
 
 def pp_struct(s): 
     name = s.children[1]
@@ -340,23 +355,23 @@ if __name__ == "__main__" :
         src = f.read()
     ast = g.parse(src)
     #print(ast)
-    print("structs : ", f"{ast.children[0]}\n")
-    print("main : ", f"{ast.children[1]}\n")
-    main = ast.children[1]
-    print("vars : ", f"{main.children[0]}\n")
-    print("body : ", f"{main.children[1]}\n")
-    print("return : ", f"{main.children[2]}\n")
+    # print("structs : ", f"{ast.children[0]}\n")
+    # print("main : ", f"{ast.children[1]}\n")
+    # main = ast.children[1]
+    # print("vars : ", f"{main.children[0]}\n")
+    # print("body : ", f"{main.children[1]}\n")
+    # print("return : ", f"{main.children[2]}\n")
     #print(asm_programme(ast))
     # print("body", ast.children[2])
     # print("return", ast.children[3])
-    print(pp_programme(ast))
+    # print(pp_programme(ast))
     
     structs = ast.children[0]
     #structs = Tree('struct', [Tree('struct', [Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'x'), Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'y'), Tree('vide', [])])]), Token('IDENTIFIER', 'Ligne')])])
-    decl = Tree('declaration_struct', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'p')])
+    # decl = Tree('declaration_struct', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'p')])
     init_struct_symbol_table(structs, struct_symbol_table)
-    print(struct_symbol_table)
+    # print(struct_symbol_table)
     print(asm_programme(ast))
-    print(var_symbol_table)
+    # print(var_symbol_table)
 
 
