@@ -59,8 +59,10 @@ struct: "typedef struct" "{" liste_att "}" IDENTIFIER ";" -> struct
 op2asm = { '+': "add rax, rbx", 
           '-': "sub rax, rbx"}
 
-# symbol_table = {point: {x: 0, y: 8}, ligne: {p1_x: 0, p1_y: 8, p2_x: 16, p2_y: 24}}
+# struct_symbol_table = {point: {x: 0, y: 8}, ligne: {p1_x: 0, p1_y: 8, p2_x: 16, p2_y: 24}}
 struct_symbol_table = {}
+var_symbol_table = {}
+
 
 
 
@@ -91,13 +93,12 @@ pop rax
 
 
 
-def asm_commande(c) :
+def asm_commande(c, current_offset) :
     if c.data == "affectation" :
-        print(c)
         var = c.children[0]
         exp = c.children[1]
         return f"""{asm_expression(exp)}
-mov [{var}], rax"""
+mov [{var}], rax""", current_offset
     elif c.data == "skip": return ""
     elif c.data == "print":
         exp = c.children[0]
@@ -105,53 +106,40 @@ mov [{var}], rax"""
 mov rdi, rax
 xor rax, rax
 mov rsi, fmt
-call printf"""
+call printf""",current_offset
     elif c.data == "while": 
         exp = c.children[0]
         body = c.children[1]
         return f"""at0: {asm_expression(exp)}
-cmp rax, 0"""
+cmp rax, 0""",current_offset
     elif c.data == "sequence" :
         d = c.children[0]
         tail = c.children[1]
-        return f"""{asm_commande(d)}
-{asm_commande(tail)}"""
+        return f"""{asm_commande(d, current_offset)[0]}
+{asm_commande(tail, current_offset)[0]}""",current_offset 
     elif c.data == "ite" :
         exp = c.children[0]
         body_if = c.children[1]
         body_else = c.children[2]
-        return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
-    return "--"
-
-
+        # TODO : add ite
+    elif c.data == "declaration_struct" :
+        type = c.children[0].children[0].value
+        size = len(struct_symbol_table[type])*8
+        identifier = c.children[1].value
+        var_symbol_table[identifier] = {"type": type, "off":current_offset}
+        current_offset += size
+        return f"""sub rsp, {size}""",current_offset
+    return "--",current_offset
 
 
 
 def init_atts(body, res, offset, symbol_table) :
-    # if body.data == "vide" :
-    #     return res
-    # else :
-    #     type = body.children[0]
-
-    #     if type.data == "int" :
-    #         identifier = body.children[1]
-    #         tail = body.children[2]
-    #         res[identifier.value] = offset
-    #         offset += 8
-    #         return init_atts(tail, res, offset, symbol_table)
-    #     else :
-    #         identifier = body.children[1]
-    #         tail = body.children[2]
-    #         if type.children[0] not in symbol_table :
-    #             print(f"Error : type {type.children[0]} undefined")
-    #             return {}
-    #         else :
-    #             res[identifier.value] = symbol_table[type.children[0]]
-    #             return init_atts(tail, res, offset, symbol_table)
+    """create a dictionnary with the fields of a struct described by body and their offset from the address of the object of type struct"""
     if body.data == "vide":
         return res
     else:
         type_node = body.children[0]
+
         identifier = body.children[1]
         tail = body.children[2]
 
@@ -161,48 +149,63 @@ def init_atts(body, res, offset, symbol_table) :
         else:
             type_name = type_node.children[0].value
             if type_name not in symbol_table:
-                print(f"Error: type {type_name} undefined")
-                return {}
+                raise TypeError(f"type {type_name} undefined")
             else:
                 sublayout = symbol_table[type_name]
                 for field, suboffset in sublayout.items():
                     res[f"{identifier.value}.{field}"] = offset + suboffset
-                offset += max(sublayout.values()) + 8  # assumes fields are 8 bytes
+                offset += max(sublayout.values()) + 8  
 
         return init_atts(tail, res, offset, symbol_table)
 
+
 def init_struct(s, symbol_table):
-    # if s.children[0].data == "struct":
-    #     return init_struct(s.children[0], symbol_table)
-    # else :
     body = s.children[0]
     name = s.children[1]
     symbol_table[name.value] = init_atts(body, {}, 0, symbol_table)
     return symbol_table
-
-# def init_struct_symbol_table(liste_structs, symbol_table) :
-#     if liste_structs.data == "vide" :
-#         return symbol_table
-#     elif liste_structs.data == "struct" :
-#         #struct = liste_structs.children[0]
-#         name = liste_structs.children[1]
-#         body = liste_structs.children[0]
-#         print(body)
-#         symbol_table[name.value] = init_atts(body,{},0, symbol_table)
-#         return symbol_table
-#     else :
-#         tmp = init_struct_symbol_table(liste_structs.children[0], symbol_table)
-#         return init_struct_symbol_table(liste_structs.children[1], tmp)
-        
     
+
+
 def init_struct_symbol_table(liste_structs, symbol_table):
     if liste_structs.data == "vide":
         return symbol_table
     elif liste_structs.data == "struct":
         return init_struct(liste_structs.children[0], symbol_table)
     else:
-        symbol_table = init_struct_symbol_table(liste_structs.children[0], symbol_table)
-        return init_struct_symbol_table(liste_structs.children[1], symbol_table)
+        tmp = init_struct(liste_structs.children[0], symbol_table)
+        return init_struct_symbol_table(liste_structs.children[1], tmp)
+    
+def init_and_decl_vars(vars, i) :
+    """Return the init_vars and decl_vars lists used in asm_programme.
+       
+       params :
+         - vars : Tree representing the variables of main
+         - i : current offset to find the address of the variable (x --> 8, y --> 16 , etc.)
+    
+    """
+
+    if vars.data == "vide" :
+        return "",""
+    elif vars.data == "var" :
+        var = vars.children[0]
+        init_vars = f"""mov rbx, [argv]
+mov rdi, [rbx + {(i+1)*8}]
+call atoi
+mov [{var.value}], rax """
+        decl_vars = f"{var.value}: dq 0\n"
+        return init_vars, decl_vars
+    else :
+        var = vars.children[0]
+        tail = vars.children[1]
+        init_vars_tail, decl_vars_tail = init_and_decl_vars(tail,i+1)
+        init_vars = f"""mov rbx, [argv]
+mov rdi, [rbx + {(i+1)*8}]
+call atoi
+mov [{var.value}], rax\n""" + init_vars_tail
+        decl_vars = f"{var.value}: dq 0\n" + decl_vars_tail
+        return init_vars, decl_vars
+        
 
 def asm_programme(p):
     # read moule.asm
@@ -214,36 +217,24 @@ def asm_programme(p):
     main = p.children[1]
 
     #initialize struct symbol table
-    init_struct_symbol_table(structs)
-
-    # declare + initialize structs
-    # init_structs = ""
-    # decl_structs = ""
-    # for i, s in enumerate(structs.children):
-    #     # s : current struct
-    #     decl_s = decl_struct(s)
-    #     print(decl_s)
-    #     decl_structs += f"{decl_s}\n"
+    init_struct_symbol_table(structs, struct_symbol_table)
 
     # return value 
     ret = asm_expression(main.children[2])
     prog_asm = prog_asm.replace("RETOUR", ret)
 
     #declare + initialize variables
-    init_vars = ""
-    decl_vars = ""
-    for i, c in enumerate(main.children[0]):
-        init_vars += f"""mov rbx, [argv]
-mov rdi, [rbx + {(i+1)*8}]
-call atoi
-mov [{c.value}], rax
-"""
-        decl_vars += f"{c.value}: dq 0\n"
-
+    init_vars, decl_vars = init_and_decl_vars(main.children[0],0)
     prog_asm = prog_asm.replace("INIT_VARS", init_vars)
     prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
-    asm_c = asm_commande(p.children[1])
+
+    # assembly for commands
+    current_offset = 0
+    asm_c, current_offset = asm_commande(main.children[1],current_offset)
+    print("heyyyyy : ",current_offset)
+    asm_c += f"""\nadd rsp, {current_offset}""" #restore allocated stack space
     prog_asm = prog_asm.replace("COMMANDE", asm_c)
+
     return prog_asm
 
 
@@ -336,7 +327,6 @@ def pp_liste_struct(l):
     elif l.data == "struct" :
         return f"{pp_struct(l.children[0])}"
     else :
-        print("structs : ",l)
         return f"{pp_struct(l.children[0])}\n\n{pp_liste_struct(l.children[1])}"
     
 def pp_programme(p):
@@ -361,8 +351,10 @@ if __name__ == "__main__" :
     
     structs = ast.children[0]
     #structs = Tree('struct', [Tree('struct', [Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'x'), Tree('atts', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'y'), Tree('vide', [])])]), Token('IDENTIFIER', 'Ligne')])])
-    print(pp_liste_struct(structs))
+    decl = Tree('declaration_struct', [Tree('custom', [Token('IDENTIFIER', 'Point')]), Token('IDENTIFIER', 'p')])
     init_struct_symbol_table(structs, struct_symbol_table)
     print(struct_symbol_table)
+    print(asm_programme(ast))
+    print(var_symbol_table)
 
 
