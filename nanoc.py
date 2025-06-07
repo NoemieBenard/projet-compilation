@@ -69,7 +69,7 @@ var_symbol_table = {}
 ###########################################################################
 ########################      Assembly     ################################
 ###########################################################################
-
+current_offset = 0
 
 
 def asm_expression(e) :
@@ -93,12 +93,13 @@ pop rax
 
 
 
-def asm_commande(c, current_offset) :
+def asm_commande(c) :
+    global current_offset
     if c.data == "affectation" :
         var = c.children[0]
         exp = c.children[1]
         return f"""{asm_expression(exp)}
-mov [{var}], rax""", current_offset
+mov [{var}], rax"""
     elif c.data == "skip": return ""
     elif c.data == "print":
         exp = c.children[0]
@@ -106,17 +107,17 @@ mov [{var}], rax""", current_offset
 mov rdi, rax
 xor rax, rax
 mov rsi, fmt
-call printf""",current_offset
+call printf"""
     elif c.data == "while": 
         exp = c.children[0]
         body = c.children[1]
         return f"""at0: {asm_expression(exp)}
-cmp rax, 0""",current_offset
+cmp rax, 0"""
     elif c.data == "sequence" :
         d = c.children[0]
         tail = c.children[1]
-        return f"""{asm_commande(d, current_offset)[0]}
-{asm_commande(tail, current_offset)[0]}""",current_offset 
+        return f"""{asm_commande(d)}
+{asm_commande(tail)}""" 
     elif c.data == "ite" :
         exp = c.children[0]
         body_if = c.children[1]
@@ -128,8 +129,8 @@ cmp rax, 0""",current_offset
         identifier = c.children[1].value
         var_symbol_table[identifier] = {"type": type, "off":current_offset}
         current_offset += size
-        return f"""sub rsp, {size}""",current_offset
-    return "--",current_offset
+        return f"""sub rsp, {size}"""
+    return "--"
 
 
 
@@ -208,6 +209,8 @@ mov [{var.value}], rax\n""" + init_vars_tail
         
 
 def asm_programme(p):
+    global current_offset
+
     # read moule.asm
     with open("moule.asm") as f:
         prog_asm = f.read()
@@ -229,8 +232,7 @@ def asm_programme(p):
     prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
 
     # assembly for commands
-    current_offset = 0
-    asm_c, current_offset = asm_commande(main.children[1],current_offset)
+    asm_c = asm_commande(main.children[1])
     print("heyyyyy : ",current_offset)
     asm_c += f"""\nadd rsp, {current_offset}""" #restore allocated stack space
     prog_asm = prog_asm.replace("COMMANDE", asm_c)
