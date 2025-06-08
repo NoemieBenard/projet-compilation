@@ -25,7 +25,7 @@ commande: commande (";" commande)*                               -> sequence
 program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
 %import common.WS
 %ignore WS
-""", start='commande')
+""", start='program')
 
 
 def get_vars_expression(e):
@@ -122,12 +122,20 @@ end{idx}: nop
         tail = c.children[1]
         return f"{asm_commande(d)}\n {asm_commande(tail)}"
 
+    if c.data == "ite" :
+        exp = c.children[0]
+        body_if = c.children[1]
+        body_else = c.children[2]
+        return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
+    
+    return "ceci est la fonction asm_commande"
+#faire if
 
-def asm_program(p):
+def asm_programme(p):
     with open("moule.asm") as f:
         prog_asm = f.read()
     ret = asm_expression(p.children[2])
-    prog_asm = prog_asm.replace("RETOUR:","RETOUR:\n"+ret)
+    prog_asm = prog_asm.replace("RETOUR", ret)
     init_vars = ""
     decl_vars = ""
     for i, c in enumerate(p.children[0].children):
@@ -137,11 +145,32 @@ call atoi
 mov [{c.value}], rax
 """
         decl_vars += f"{c.value}: dq 0\n"
+    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
+    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
+    asm_c = asm_commande(p.children[1])
+    prog_asm = prog_asm.replace("COMMANDE", asm_c)
+    return prog_asm
+
+
+"""def asm_program(p):
+    with open("moule.asm") as f:
+        prog_asm = f.read()
+    ret = asm_expression(p.children[2])
+    prog_asm = prog_asm.replace("RETOUR:","RETOUR:\n"+ret)
+    init_vars = ""
+    decl_vars = ""
+    for i, c in enumerate(p.children[0].children):
+        init_vars += f""""""mov rbx, [argv]
+mov rdi, [rbx + {(i+1)*8}]
+call atoi
+mov [{c.value}], rax
+""""""
+        decl_vars += f"{c.value}: dq 0\n"
     prog_asm = prog_asm.replace("INIT_VARS:", "INIT_VARS:\n"+init_vars)
     prog_asm = prog_asm.replace("DECL_VARS:", "DECL_VARS:\n"+decl_vars)
     asm_c = asm_commande(p.children[1])
     prog_asm = prog_asm.replace("COMMANDE:", "COMMANDE:\n"+asm_c)
-    return prog_asm    
+    return prog_asm    """
 
 
 def pp_lhs(l):
@@ -187,8 +216,9 @@ def pp_programme(p):
 if __name__ == "__main__":
    #with open("simple.c") as f:
         #src = f.read()
-        ast = g.parse("while(X){X=X-1;Y=Y+1}")
-        print(asm_commande(ast))
+        ast = g.parse("main(X,Y){while(X){X=X-1;Y=Y+1}return (Y+1)}")
+        #print(ast)
+        print(asm_programme(ast))
         #asm_program(ast)
         
         #print(asm_program(ast))
