@@ -1,8 +1,12 @@
 
-main(X,Y){
-    while(X){
-        X=X-1;
-        Y=Y+1
-    }
-    return (Y+1)
+main(W,X,Y,Z){
+    if(W){
+        X=&W;
+        *(X+8)=0;
+        print(*(X+8))
+       
+    else{
+        skip
+    };
+    return (Z)
 }

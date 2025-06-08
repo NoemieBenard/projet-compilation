@@ -6,7 +6,7 @@ DECL_VARS:
 X: dq 0
 Y: dq 0
 p: dq 0
-fmt_int: db "%d", 10, 0
+fmt: db "%d", 10, 0
 
 
 global main

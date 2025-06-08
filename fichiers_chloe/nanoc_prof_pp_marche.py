@@ -19,7 +19,7 @@ lhs: IDENTIFIER                   -> var
 commande: commande (";" commande)*                               -> sequence
     | "while" "(" expression ")" "{" commande "}"                -> while
     | lhs "=" expression                                         -> affectation
-    |"if" "(" expression ")" "{" commande "}" ("else" "{" commande "}")? -> ite
+    |"if" "(" expression ")" "{" commande "}" "else" "{" commande "}" -> ite
     | "printf" "(" expression ")"                                        -> print
     | "skip"                                                             -> skip
 program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
@@ -70,11 +70,11 @@ def asm_expression(e):
             while var.data == "valeur": #je regarde si var.data est une valeur. le compteur compte toutes les étoiles en plus de la première
                 compteur += 1
                 var = var.children[0]
-            char = f"mov rax, [{var.children[0].value}]"
+            char = f"mov rax, [{var.children[0].value}]\nmov rax, [rax]"
             for i in range(compteur):
                 char += "\nmov rax, [rax]"
             return char
-        else: return f"mov rax, [{var.children[0].value}]"
+        else: return f"mov rax, [{var.children[0].value}]\nmov rax, [rax]"
 
     e_left = e.children[0]
     e_op = e.children[1]
@@ -100,8 +100,8 @@ def asm_commande(c):
         return f"{asm_expression(exp)}\n{asm_lhs(lhs)}\nmov [rbx], rax" #avant lhs c'était var
     if c.data == "skip": return "nop"
     if c.data == "print": return f"""{asm_expression(c.children[0])}
-mov rsi, fmt
-mov rdi, rax
+mov rdi, fmt_int
+mov rsi, rax
 xor rax, rax
 call printf
 """
@@ -112,7 +112,7 @@ call printf
         cpt += 1
         return f"""loop{idx}:{asm_expression(exp)}
 cmp rax, 0
-jnz end{idx}
+jz end{idx}
 {asm_commande(body)}
 jmp loop{idx}
 end{idx}: nop
@@ -122,41 +122,32 @@ end{idx}: nop
         tail = c.children[1]
         return f"{asm_commande(d)}\n {asm_commande(tail)}"
 
-    if c.data == "ite" :
-        exp = c.children[0]
-        body_if = c.children[1]
-        body_else = c.children[2]
-        return f"if ({pp_expression(exp)}) then {{\n{pp_commande(body_if)}}} \n else {{\n{pp_commande(body_else)}}}"
+    if c.data == "ite":
+        cond = c.children[0]  # Condition
+        if_body = c.children[1]  # Bloc `if`
+        else_body = c.children[2]  # Bloc `else`
+        else_label = "else"
+        end_label = "end_if"
+        asm_else = f"{asm_commande(else_body)}" 
+        return f"""
+    {asm_expression(cond)}  ; Évalue la condition
+    cmp rax, 0
+    jz {else_label}
+    {asm_commande(if_body)}  ; Bloc `if`
+    jmp {end_label}
+    {else_label}:
+    {asm_else}  ; Bloc `else` (s'il existe)
+    {end_label}:"""
     
-    return "ceci est la fonction asm_commande"
-#faire if
+    return "e.data n'est pas une des options prév"
+    
 
-def asm_programme(p):
+
+"""def asm_programme(p):
     with open("moule.asm") as f:
         prog_asm = f.read()
     ret = asm_expression(p.children[2])
     prog_asm = prog_asm.replace("RETOUR", ret)
-    init_vars = ""
-    decl_vars = ""
-    for i, c in enumerate(p.children[0].children):
-        init_vars += f"""mov rbx, [argv]
-mov rdi, [rbx + {(i+1)*8}]
-call atoi
-mov [{c.value}], rax
-"""
-        decl_vars += f"{c.value}: dq 0\n"
-    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
-    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
-    asm_c = asm_commande(p.children[1])
-    prog_asm = prog_asm.replace("COMMANDE", asm_c)
-    return prog_asm
-
-
-"""def asm_program(p):
-    with open("moule.asm") as f:
-        prog_asm = f.read()
-    ret = asm_expression(p.children[2])
-    prog_asm = prog_asm.replace("RETOUR:","RETOUR:\n"+ret)
     init_vars = ""
     decl_vars = ""
     for i, c in enumerate(p.children[0].children):
@@ -166,11 +157,32 @@ call atoi
 mov [{c.value}], rax
 """"""
         decl_vars += f"{c.value}: dq 0\n"
+    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
+    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
+    asm_c = asm_commande(p.children[1])
+    prog_asm = prog_asm.replace("COMMANDE", asm_c)
+    return prog_asm"""
+
+
+def asm_program(p):
+    with open("moule.asm") as f:
+        prog_asm = f.read()
+    ret = asm_expression(p.children[2])
+    prog_asm = prog_asm.replace("RETOUR:","RETOUR:\n"+ret)
+    init_vars = ""
+    decl_vars = ""
+    for i, c in enumerate(p.children[0].children):
+        init_vars += f"""mov rbx, [argv]
+mov rdi, [rbx + {(i+1)*8}]
+call atoi
+mov [{c.value}], rax
+"""
+        decl_vars += f"{c.value}: dq 0\n"
     prog_asm = prog_asm.replace("INIT_VARS:", "INIT_VARS:\n"+init_vars)
     prog_asm = prog_asm.replace("DECL_VARS:", "DECL_VARS:\n"+decl_vars)
     asm_c = asm_commande(p.children[1])
     prog_asm = prog_asm.replace("COMMANDE:", "COMMANDE:\n"+asm_c)
-    return prog_asm    """
+    return prog_asm    
 
 
 def pp_lhs(l):
@@ -214,11 +226,11 @@ def pp_programme(p):
 
 
 if __name__ == "__main__":
-   #with open("simple.c") as f:
-        #src = f.read()
-        ast = g.parse("main(X,Y){while(X){X=X-1;Y=Y+1}return (Y+1)}")
+   with open("simple.c") as f:
+        src = f.read()
+        ast = g.parse(src)
         #print(ast)
-        print(asm_programme(ast))
+        print(asm_program(ast))
         #asm_program(ast)
         
         #print(asm_program(ast))
