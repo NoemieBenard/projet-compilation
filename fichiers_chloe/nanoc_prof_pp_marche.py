@@ -25,7 +25,7 @@ commande: commande (";" commande)*                               -> sequence
 program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
 %import common.WS
 %ignore WS
-""", start='program')
+""", start='commande')
 
 
 def get_vars_expression(e):
@@ -112,7 +112,7 @@ call printf
         cpt += 1
         return f"""loop{idx}:{asm_expression(exp)}
 cmp rax, 0
-jz end{idx}
+jnz end{idx}
 {asm_commande(body)}
 jmp loop{idx}
 end{idx}: nop
@@ -185,13 +185,13 @@ def pp_programme(p):
 
 
 if __name__ == "__main__":
-   with open("simple.c") as f:
-        src = f.read()
-        ast = g.parse(src)
-        #print(asm_commande(ast))
+   #with open("simple.c") as f:
+        #src = f.read()
+        ast = g.parse("while(X){X=X-1;Y=Y+1}")
+        print(asm_commande(ast))
         #asm_program(ast)
         
-        print(asm_program(ast))
+        #print(asm_program(ast))
         
 
     #print(ast)
