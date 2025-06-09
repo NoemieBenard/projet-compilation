@@ -48,3 +48,4 @@ il est possible de faire de la récurssion :
 
 ### Remarques 
 
+Les variables global (venant de main) peuvent etre appelé dans une fonction, mais ne doivent alors pas être modifié
