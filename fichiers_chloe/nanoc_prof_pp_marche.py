@@ -15,8 +15,11 @@ expression: IDENTIFIER            -> var
     | NUMBER                      -> number                
     | "&"expression               -> adresse
     | "*"expression               -> valeur
+    | "*("expression")"           -> valeur_par
+        
 lhs: IDENTIFIER                   -> var
     | "*"lhs                      -> pointeur
+    | "*("expression")"           -> pointeur_par
 commande: commande (";" commande)*                               -> sequence
     | "while" "(" expression ")" "{" commande "}"                -> while
     | lhs "=" expression                                         -> affectation
@@ -33,9 +36,8 @@ program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
 """, start='program')
 
 
-#ecrire commande memoire
-#écrire lhs avec des nombres
-#problème: le parseur lit malloc comme une variable
+#ecrire expression valeur_par
+#ecrire lhs pointeur_par
 
 def get_vars_expression(e):
     pass
@@ -68,6 +70,9 @@ def asm_lhs(l): #met l'adresse de ce qu'il faut changer dans rbx
                 char += "\nmov rbx, [rbx]"
             return char
         else: return f"mov rbx, [{var.children[0].value}]"
+    if l.data == "pointeur_par":
+        return f"""{asm_expression(l.children[0])}
+mov rbx, rax"""
    
 
 
@@ -89,7 +94,9 @@ def asm_expression(e):
                 char += "\nmov rax, [rax]"
             return char
         else: return f"mov rax, [{var.children[0].value}]\nmov rax, [rax]"
-
+    if e.data == "valeur_par":
+        return f"""{asm_expression(e.children[0])}
+mov rax, [rax]"""
     e_left = e.children[0]
     e_op = e.children[1]
     e_right = e.children[2]
@@ -112,7 +119,9 @@ def asm_commande(c):
         lhs = c.children[0]
         exp = c.children[1]
         return f"""{asm_expression(exp)}
+push rax
 {asm_lhs(lhs)}
+pop rax
 mov [rbx], rax"""
     
     if c.data == "skip": return "nop"

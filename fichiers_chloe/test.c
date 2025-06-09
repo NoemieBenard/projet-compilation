@@ -1,7 +1,6 @@
 main(X,Y,Z){
-    X = 1;
-    Y = &X;
+    Y = malloc(6);
     *(Y+3)=5;
     Z = *(Y+3)
-    return Z
+    return (Z)
 }
