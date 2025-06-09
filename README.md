@@ -30,11 +30,11 @@ Toutes les structures doivent être définies avant la fonction `main`
 ### Déclaration d'un objet de type struct
 
 `Point p;`\
-On peut définir des objets de type struct à l'intérieur de main. Par défaut l'espace pour p est alloué sur la pile et ses attributs ne sont pas initialisés.
+On peut définir des objets de type struct à l'intérieur de main. L'espace pour p est alloué sur la pile et par défaut ses attributs ne sont pas initialisés.
 
 ### Accès à un attribut
 
-Affectation : `p.x = 2;` 
+Affectation : `p.x = 2;` ou `p.x = p.y;` (si p.y a été initialisé auparavant)
 
 Valeur de retour :  l'attribut peut être le résultat de main
 ```
@@ -73,15 +73,23 @@ main(x,y){
 ```
 
 ### Opérations sur les attributs 
-Les opérations suivantes sur les attributs fonctionnent :\
-`p.x = p.x + 2;` (si p.x a été initialisé auparavant)
+Les opérations suivantes sur les attributs fonctionnent :
 
+#### Addition 
+`p.x = p.x + 2;` (si p.x a été initialisé auparavant) \
+`x = p.y + 4`
+
+#### Affectation d'un objet en tant qu'attribut d'un autre objet
+
+Le code suivant peut être compilé : 
 ```
+Point p;
 Ligne l;
-l.p1.x = p.x + 2;
+l.p1 = p 
 ```
 
 
 ### Remarques 
 
+- Le fait de renvoyer ou affecter à une autre variable une variable non initialisée compile mais donne des résultats aberrants
 
