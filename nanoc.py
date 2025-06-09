@@ -20,6 +20,7 @@ expression: IDENTIFIER            -> var
 lhs: IDENTIFIER                   -> var
     | "*"lhs                      -> pointeur
     | "*("expression")"           -> pointeur_par
+         
 commande: commande (";" commande)*                               -> sequence
     | "while" "(" expression ")" "{" commande "}"                -> while
     | lhs "=" expression                                         -> affectation
@@ -27,10 +28,12 @@ commande: commande (";" commande)*                               -> sequence
     | "printf" "(" expression ")"                                        -> print
     | "skip"                                                             -> skip
     | lhs "=" rhs                                                  -> memoire
+         
 rhs: MALLOC"("NUMBER")"                        ->malloc
          
          
 program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
+         
 %import common.WS
 %ignore WS
 """, start='program')
@@ -259,7 +262,7 @@ def pp_programme(p):
 
 
 if __name__ == "__main__":
-   with open("test.c") as f:
+   with open("simple.c") as f:
         src = f.read()
         ast = g.parse(src)
         #print(ast)

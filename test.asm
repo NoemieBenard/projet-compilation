@@ -1,10 +1,13 @@
-extern printf, atoi
+extern printf, atoi, malloc
 
 section .data
 
+DECL_VARS:
+W: dq 0
 X: dq 0
 Y: dq 0
-:
+Z: dq 0
+
 argv: dq 0
 fmt_int: db "%d", 10, 0
 
@@ -15,43 +18,46 @@ main:
 push rbp
 mov [argv], rsi
 
+INIT_VARS:
 mov rbx, [argv]
 mov rdi, [rbx + 8]
 call atoi
-mov [X], rax
+mov [W], rax
 mov rbx, [argv]
 mov rdi, [rbx + 16]
 call atoi
+mov [X], rax
+mov rbx, [argv]
+mov rdi, [rbx + 24]
+call atoi
 mov [Y], rax
-:
-loop0:mov rax, [X]
-cmp rax, 0
-jnz end0
-mov rax, [X] 
+mov rbx, [argv]
+mov rdi, [rbx + 32]
+call atoi
+mov [Z], rax
+
+COMMANDE:
+mov rax, W
 push rax
-mov rax, 1
-mov rbx, rax
-pop rax
-sub rax, rbx
 mov rbx, X
-mov [rbx], rax
- mov rax, [Y] 
-push rax
-mov rax, 1
-mov rbx, rax
 pop rax
-add rax, rbx
+mov [rbx], rax
+ mov rax, X
+push rax
 mov rbx, Y
-mov [rbx], rax
-jmp loop0
-end0: nop
-:
-mov rax, [Y] 
-push rax
-mov rax, 1
-mov rbx, rax
 pop rax
-add rax, rbx:
+mov [rbx], rax
+ mov rax, [Y]
+mov rax, [rax]
+mov rax, [rax]
+push rax
+mov rbx, Z
+pop rax
+mov [rbx], rax
+RETOUR:
+mov rax, [Z]
+
+
 mov rdi, fmt_int
 mov rsi, rax
 xor rax, rax

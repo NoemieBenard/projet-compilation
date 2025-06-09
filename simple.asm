@@ -40,27 +40,28 @@ COMMANDE:
 mov rbx, W
 mov edi, 8
 call malloc
-mov [rbx], rax      ;la valeur de W c'est l'adresse du malloc
-
+mov [rbx], rax
  mov rax, [W] 
-push rax            ; adresse du malloc dans la pile
+push rax
 mov rax, 10000
 mov rbx, rax
 pop rax
-add rax, rbx        ; adresse + 1000
-
+add rax, rbx
+push rax
 mov rbx, X
-mov [rbx], rax      ; X prend cette valeur
-
+pop rax
+mov [rbx], rax
  mov rax, 6
-mov rbx, [X]        ; rbx contient adresse+1000
-
-mov [rbx], rax      ; cette adresse pointe maintenant vers 6
-
- mov rax, [X]       ; rax contient adresse+1000
-mov rax, [rax]      ; rax contient 6
+push rax
+mov rbx, [X]
+pop rax
+mov [rbx], rax
+ mov rax, [X]
+mov rax, [rax]
+push rax
 mov rbx, Y
-mov [rbx], rax      ; valeur de Y = 6
+pop rax
+mov [rbx], rax
 RETOUR:
 mov rax, [Y]
 
