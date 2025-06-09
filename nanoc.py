@@ -37,7 +37,6 @@ expression: IDENTIFIER               -> var
          
 lhs: IDENTIFIER                      -> variable
     | IDENTIFIER "." lhs      -> acces_attribut 
-
          
 
 commande: lhs "=" expression                                                    -> affectation
@@ -61,20 +60,90 @@ struct: "typedef struct" "{" liste_att "}" IDENTIFIER ";" -> struct
 op2asm = { '+': "add rax, rbx", 
           '-': "sub rax, rbx"}
 
-# struct_symbol_table = {point: {x: 0, y: 8}, ligne: {p1_x: 0, p1_y: 8, p2_x: 16, p2_y: 24}}
+
+
+
+###################################################################################
+##############################   Symbol table  ####################################
+###################################################################################
+
+# struct_symbol_table = {point: {x: 0, y: 8}, ligne: {p1.x: 0, p1.y: 8, p2.x: 16, p2.y: 24}, ...}
 struct_symbol_table = {}
+
+# var_symbol_table = {'p': {'type': 'Point', 'off': 0}, 'l': {'type': 'Ligne', 'off': 16}, ...}
+# type : type de l'objet
+# off : offset de l'objet sur la pile
 var_symbol_table = {}
 
+
+def init_atts(body, res, offset, symbol_table) :
+    """create a dictionnary with the fields of a struct described by body and 
+       their offset from the address of the object of type struct
+    """
+    if body.data == "vide":
+        return res
+    else:
+        type_node = body.children[0]
+
+        identifier = body.children[1]
+        tail = body.children[2]
+
+        if type_node.data == "int":
+            res[identifier.value] = offset
+            offset += 8  #each attribute is an int
+        else:
+            type_name = type_node.children[0].value
+            if type_name not in symbol_table:
+                raise TypeError(f"type {type_name} undefined")
+            else:
+                sublayout = symbol_table[type_name]
+                for field, suboffset in sublayout.items():
+                    res[f"{identifier.value}.{field}"] = offset + suboffset
+                offset += max(sublayout.values()) + 8  
+
+        return init_atts(tail, res, offset, symbol_table)
+
+
+def init_struct(s, symbol_table):
+    """create the entry s in struct_symbol_table with value init_atts(body, {}, 0, symbol_table)
+    
+    ex : init_struct()
+    """
+    body = s.children[0]
+    name = s.children[1]
+    symbol_table[name.value] = init_atts(body, {}, 0, symbol_table)
+    return symbol_table
+    
+
+def init_struct_symbol_table(liste_structs, symbol_table):
+    if liste_structs.data == "vide":
+        return symbol_table
+    elif liste_structs.data == "struct":
+        return init_struct(liste_structs.children[0], symbol_table)
+    else:
+        tmp = init_struct(liste_structs.children[0], symbol_table)
+        return init_struct_symbol_table(liste_structs.children[1], tmp)
+    
 
 
 
 ###########################################################################
 ########################      Assembly     ################################
 ###########################################################################
-current_offset = 0
 
+current_offset = 0 #offset du dernier objet ajouté sur la pile
+
+
+def get_field_name(f) :
+    """ return the name of the field represented by the Lark tree f"""
+    if (f.data == "variable") :
+            return f.children[0].value
+    else :
+        return f"{f.children[0].value}.{get_field_name(f.children[1])}"
+    
 
 def asm_expression(e) :
+    """return the assembly for the expression e"""
     if e.data == "var": return f"mov rax, [{e.children[0].value}]"
     if e.data == "number":  return f"mov rax, {e.children[0].value}"
     if e.data == "acces_attribut": 
@@ -101,13 +170,9 @@ pop rax
 {op2asm[e_op.value]}"""
 
 
-def get_field_name(f) :
-    if (f.data == "variable") :
-            return f.children[0].value
-    else :
-        return f"{f.children[0].value}.{get_field_name(f.children[1])}"
 
 def asm_commande(c) :
+    """return the assembly for the command c"""
     global current_offset
     if c.data == "affectation" :
         lhs = c.children[0]
@@ -115,18 +180,48 @@ def asm_commande(c) :
         asm_lhs = ""
         if lhs.data == "variable" :
             asm_lhs = f"[{lhs.children[0].value}]"
-        else :
-            identifier = lhs.children[0].value
-            object_offset = var_symbol_table[identifier]["off"]
-            object_type = var_symbol_table[identifier]["type"]
-            field = lhs.children[1]
-            field_name = get_field_name(field)
-            field_offset = struct_symbol_table[object_type][field_name]
-            asm_lhs = f"[rsp + {object_offset + field_offset}]"
-
-        return f"""{asm_expression(exp)}
+            return f"""{asm_expression(exp)}
 mov {asm_lhs}, rax"""
+        else : # if a struct is involved in the assignment 
+            lhs_identifier = lhs.children[0].value
+            lhs_field = lhs.children[1]
+            lhs_offset = var_symbol_table[lhs_identifier]["off"]
+            lhs_type = var_symbol_table[lhs_identifier]["type"]
+            lhs_field_name = get_field_name(lhs_field)
+
+            # handle the case where rhs is an object (ex : l.p1 = p where l is a line and p a point)
+            if (exp.data == "var") and (exp.children[0].value in var_symbol_table) :
+                rhs_identifier = exp.children[0].value
+                rhs_type = var_symbol_table[rhs_identifier]["type"]
+                rhs_offset = var_symbol_table[rhs_identifier]["off"]
+                asm = ""
+                
+                for field_name, offset in struct_symbol_table[rhs_type].items() :
+                    
+                    string = lhs_field_name + "." + field_name
+                    lhs_field_offset = struct_symbol_table[lhs_type][string]
+                    
+                    if string in struct_symbol_table[lhs_type] :
+                        
+                        asm += f"""mov rax, [rsp + {rhs_offset + offset}]
+mov [rsp + {lhs_offset + lhs_field_offset}], rax
+"""
+                    else :
+                        raise TypeError(f"cannot assign {exp.children[0].value} to {lhs_identifier}")
+                return asm
+
+            # handle the case where rhs is a normal expression
+            else :
+                if lhs_field_name in struct_symbol_table[lhs_type] :
+                    field_offset = struct_symbol_table[lhs_type][lhs_field_name]
+                    asm_lhs = f"[rsp + {lhs_offset + field_offset}]"
+                    return f"""{asm_expression(exp)}
+mov {asm_lhs}, rax"""
+                else :
+                    raise TypeError(f"cannot assign {exp.children[0].value} to {lhs_identifier}.{lhs_field_name}")
+    
     elif c.data == "skip": return ""
+
     elif c.data == "print":
         exp = c.children[0]
         return f"""{asm_expression(exp)}
@@ -134,21 +229,19 @@ mov rdi, rax
 xor rax, rax
 mov rsi, fmt
 call printf"""
+    
     elif c.data == "while": 
         exp = c.children[0]
         body = c.children[1]
         return f"""at0: {asm_expression(exp)}
 cmp rax, 0"""
+    
     elif c.data == "sequence" :
         d = c.children[0]
         tail = c.children[1]
         return f"""{asm_commande(d)}
 {asm_commande(tail)}""" 
-    elif c.data == "ite" :
-        exp = c.children[0]
-        body_if = c.children[1]
-        body_else = c.children[2]
-        # TODO : add ite
+    
     elif c.data == "declaration_struct" :
         type = c.children[0].children[0].value
         size = len(struct_symbol_table[type])*8
@@ -158,50 +251,6 @@ cmp rax, 0"""
         return f"""sub rsp, {size}"""
     return "--"
 
-
-
-def init_atts(body, res, offset, symbol_table) :
-    """create a dictionnary with the fields of a struct described by body and their offset from the address of the object of type struct"""
-    if body.data == "vide":
-        return res
-    else:
-        type_node = body.children[0]
-
-        identifier = body.children[1]
-        tail = body.children[2]
-
-        if type_node.data == "int":
-            res[identifier.value] = offset
-            offset += 8  #each attribute is an 8-byte int
-        else:
-            type_name = type_node.children[0].value
-            if type_name not in symbol_table:
-                raise TypeError(f"type {type_name} undefined")
-            else:
-                sublayout = symbol_table[type_name]
-                for field, suboffset in sublayout.items():
-                    res[f"{identifier.value}.{field}"] = offset + suboffset
-                offset += max(sublayout.values()) + 8  
-
-        return init_atts(tail, res, offset, symbol_table)
-
-
-def init_struct(s, symbol_table):
-    body = s.children[0]
-    name = s.children[1]
-    symbol_table[name.value] = init_atts(body, {}, 0, symbol_table)
-    return symbol_table
-    
-
-
-def init_struct_symbol_table(liste_structs, symbol_table):
-    if liste_structs.data == "vide":
-        return symbol_table
-    elif liste_structs.data == "struct":
-        return init_struct(liste_structs.children[0], symbol_table)
-    else:
-        tmp = init_struct(liste_structs.children[0], symbol_table)
-        return init_struct_symbol_table(liste_structs.children[1], tmp)
     
 def init_and_decl_vars(vars, i) :
     """Return the init_vars and decl_vars lists used in asm_programme.
@@ -382,6 +431,6 @@ if __name__ == "__main__" :
     init_struct_symbol_table(structs, struct_symbol_table)
     #print(struct_symbol_table)
     print(asm_programme(ast))
-    # print(var_symbol_table)
+    #print(var_symbol_table)
 
 

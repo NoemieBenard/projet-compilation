@@ -15,10 +15,11 @@ typedef struct {
 main(x,y){
     Point p;
     Ligne l;
-    p.x = 5;
-    p.y = p.x + 10;
+    p.x = 2;
+    p.y = 6;
+    x = p.x + 2;
     l.p1 = p
-    return (p.x)
+    return (x)
 }
 
 
