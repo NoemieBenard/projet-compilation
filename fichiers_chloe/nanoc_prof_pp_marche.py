@@ -2,9 +2,10 @@ from lark import Lark
 
 cpt = 0
 g = Lark("""
-IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9]*/
+IDENTIFIER: /(?!malloc$)[a-zA-Z_][a-zA-Z0-9]*/
 NUMBER: /[1-9][0-9]*/|"0" 
 OPBIN: /[+\\-*\\/>]/
+MALLOC: /malloc/
 
 liste_var:                            -> vide
     | IDENTIFIER ("," IDENTIFIER)*    -> vars
@@ -22,11 +23,19 @@ commande: commande (";" commande)*                               -> sequence
     |"if" "(" expression ")" "{" commande "}" "else" "{" commande "}" -> ite
     | "printf" "(" expression ")"                                        -> print
     | "skip"                                                             -> skip
+    | lhs "=" rhs                                                  -> memoire
+rhs: MALLOC"("NUMBER")"                        ->malloc
+         
+         
 program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
 %import common.WS
 %ignore WS
 """, start='program')
 
+
+#ecrire commande memoire
+#écrire lhs avec des nombres
+#problème: le parseur lit malloc comme une variable
 
 def get_vars_expression(e):
     pass
@@ -38,6 +47,11 @@ def get_vars_commande(c):
 op2asm = {'+' : 'add rax, rbx', '-': 'sub rax, rbx'}
 
 
+def asm_rhs(r):
+    #par défaut, on va prendre la valeur 4
+    arg = r.children[1].value
+    return f"""mov edi, {arg}
+call malloc"""
 
 def asm_lhs(l): #met l'adresse de ce qu'il faut changer dans rbx
     if l.data == "var": return f"mov rbx, {l.children[0].value}"
@@ -97,7 +111,10 @@ def asm_commande(c):
     if c.data == "affectation": 
         lhs = c.children[0]
         exp = c.children[1]
-        return f"{asm_expression(exp)}\n{asm_lhs(lhs)}\nmov [rbx], rax" #avant lhs c'était var
+        return f"""{asm_expression(exp)}
+{asm_lhs(lhs)}
+mov [rbx], rax"""
+    
     if c.data == "skip": return "nop"
     if c.data == "print": return f"""{asm_expression(c.children[0])}
 mov rdi, fmt_int
@@ -138,7 +155,14 @@ end{idx}: nop
     {else_label}:
     {asm_else}  ; Bloc `else` (s'il existe)
     {end_label}:"""
-    
+    if c.data == "memoire":
+        lhs = c.children[0]
+        rhs = c.children[1]
+        return f"""{asm_lhs(lhs)}
+{asm_rhs(rhs)}
+mov [rbx], rax"""
+
+
     return "e.data n'est pas une des options prév"
     
 
@@ -226,7 +250,7 @@ def pp_programme(p):
 
 
 if __name__ == "__main__":
-   with open("simple.c") as f:
+   with open("test.c") as f:
         src = f.read()
         ast = g.parse(src)
         #print(ast)
@@ -234,7 +258,11 @@ if __name__ == "__main__":
         #asm_program(ast)
         
         #print(asm_program(ast))
-        
+
+
+"""ast = g.parse("p = malloc(5)")
+print(ast)    
+print(asm_commande(ast))"""
 
     #print(ast)
     #print(asm_lhs(ast))

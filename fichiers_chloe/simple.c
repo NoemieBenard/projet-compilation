@@ -1,12 +1,8 @@
 
 main(W,X,Y,Z){
-    if(W){
-        X=&W;
-        *(X+8)=0;
-        print(*(X+8))
-       
-    else{
-        skip
-    };
-    return (Z)
+    W = malloc(8);
+    X = W + 10000;
+    *X = 6;
+    Y = *X
+    return (Y)
 }
