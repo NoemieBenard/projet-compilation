@@ -15,7 +15,7 @@ Exécuter les commandes :\
 
 ## Exemples d'utilisation
 
-Il est possible de:\
+Il est possible de:
 
 1) déréférencer des variables (autant de fois que l'on veut):\
    `******p`
