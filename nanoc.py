@@ -39,8 +39,6 @@ program:"main" "(" liste_var ")" "{"commande "return" "("expression")" "}"
 """, start='program')
 
 
-#ecrire expression valeur_par
-#ecrire lhs pointeur_par
 
 def get_vars_expression(e):
     pass
@@ -52,8 +50,7 @@ def get_vars_commande(c):
 op2asm = {'+' : 'add rax, rbx', '-': 'sub rax, rbx'}
 
 
-def asm_rhs(r):
-    #par défaut, on va prendre la valeur 4
+def asm_rhs(r):#met le résultat dans rax
     arg = r.children[1].value
     return f"""mov edi, {arg}
 call malloc"""
@@ -80,7 +77,7 @@ mov rbx, rax"""
 
 
 
-def asm_expression(e):
+def asm_expression(e):#met le resultat dans rax
     if e.data == "var": return f"mov rax, [{e.children[0].value}]"
     if e.data == "number": return f"mov rax, {e.children[0].value}"
     if e.data == "adresse":return f"mov rax, {e.children[0].children[0].value}"
@@ -175,29 +172,9 @@ end{idx}: nop
 mov [rbx], rax"""
 
 
-    return "e.data n'est pas une des options prév"
+    return "e.data n'est pas une des options prévues"
     
 
-
-"""def asm_programme(p):
-    with open("moule.asm") as f:
-        prog_asm = f.read()
-    ret = asm_expression(p.children[2])
-    prog_asm = prog_asm.replace("RETOUR", ret)
-    init_vars = ""
-    decl_vars = ""
-    for i, c in enumerate(p.children[0].children):
-        init_vars += f""""""mov rbx, [argv]
-mov rdi, [rbx + {(i+1)*8}]
-call atoi
-mov [{c.value}], rax
-""""""
-        decl_vars += f"{c.value}: dq 0\n"
-    prog_asm = prog_asm.replace("INIT_VARS", init_vars)
-    prog_asm = prog_asm.replace("DECL_VARS", decl_vars)
-    asm_c = asm_commande(p.children[1])
-    prog_asm = prog_asm.replace("COMMANDE", asm_c)
-    return prog_asm"""
 
 
 def asm_program(p):
@@ -265,24 +242,5 @@ if __name__ == "__main__":
    with open("simple.c") as f:
         src = f.read()
         ast = g.parse(src)
-        #print(ast)
         print(asm_program(ast))
-        #asm_program(ast)
-        
-        #print(asm_program(ast))
-
-
-"""ast = g.parse("p = malloc(5)")
-print(ast)    
-print(asm_commande(ast))"""
-
-    #print(ast)
-    #print(asm_lhs(ast))
-    
-    
-    #print(pp_lhs(ast))
-#print(ast.children)
-#print(ast.children[0].type)
-#print(ast.children[0].value)
-
-#program:"main" "(" liste_var ")" "{"commande"return" "("expression")" "}"
+       
