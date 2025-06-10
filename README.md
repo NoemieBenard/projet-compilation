@@ -14,4 +14,6 @@ Les autres branches `pointeur`, `struct`, `fonction` contiennent chacune l'exten
 Chaque branche contient sa propre grammaire, il faut donc se placer dans la branche correspondante pour compiler un fichier contenant l'extension souhaitée.
 
 1. Récupérer l'assembleur généré par le fichier nanoc.py dans un fichier assembleur (par exemple file.asm)
-2. Exécuter la commande : 
+2. Exécuter la commande : `nasm -f elf64 file.asm`
+3. Puis : `gcc -no-pie file.o`
+4. Et enfin : `./a.out` avec les arguments nécessaires si besoin
